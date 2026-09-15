@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveRelevantEntries, generateReflection } from "@/lib/rag";
 import { detectCrisis } from "@/lib/crisis";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 import type { ReflectResponse } from "@/lib/types";
 
 /**
@@ -19,29 +21,49 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const allowed = await checkRateLimit(supabase, "reflect");
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429 }
+    );
+  }
+
   const { entryId, content } = await request.json();
   if (typeof content !== "string" || !content.trim()) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
-
-  const crisis = await detectCrisis(content);
-  if (crisis.triggered) {
-    const safe: ReflectResponse = {
-      reflection:
-        "I want to pause here. It sounds like you're carrying something really heavy right now, and you deserve support from someone who can be fully present with you. Please take a look at the resources above.",
-      grounding: [],
-      crisis,
-    };
-    return NextResponse.json(safe);
+  if (content.length > MAX_ENTRY_LENGTH) {
+    return NextResponse.json(
+      { error: `Content must be ${MAX_ENTRY_LENGTH} characters or fewer` },
+      { status: 400 }
+    );
   }
 
-  const grounding = await retrieveRelevantEntries(supabase, content, {
-    topK: 4,
-    excludeEntryId: typeof entryId === "string" ? entryId : undefined,
-  });
+  try {
+    const crisis = await detectCrisis(content);
+    if (crisis.triggered) {
+      const safe: ReflectResponse = {
+        reflection:
+          "I want to pause here. It sounds like you're carrying something really heavy right now, and you deserve support from someone who can be fully present with you. Please take a look at the resources above.",
+        grounding: [],
+        crisis,
+      };
+      return NextResponse.json(safe);
+    }
 
-  const reflection = await generateReflection(content, grounding);
+    const grounding = await retrieveRelevantEntries(supabase, content, {
+      topK: 4,
+      excludeEntryId: typeof entryId === "string" ? entryId : undefined,
+    });
 
-  const response: ReflectResponse = { reflection, grounding, crisis };
-  return NextResponse.json(response);
+    const reflection = await generateReflection(content, grounding);
+
+    const response: ReflectResponse = { reflection, grounding, crisis };
+    return NextResponse.json(response);
+  } catch (err) {
+    console.error("POST /api/reflect: reflection failed", err);
+    const message = err instanceof Error ? err.message : "Reflection failed";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }

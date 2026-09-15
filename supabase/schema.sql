@@ -83,3 +83,62 @@ as $$
   order by e.embedding <=> query_embedding
   limit match_count;
 $$;
+
+-- 5. Rate limiting -----------------------------------------------------
+-- Postgres-backed so limits are correct across concurrent serverless
+-- instances/cold starts (an in-memory counter would not be a real global
+-- limit). NOTE: this is a new section added after the MVP — re-run this
+-- whole file (or just this section) in the Supabase SQL editor; there is
+-- no migrations pipeline for this project.
+create table if not exists public.rate_limits (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  route text not null,
+  window_start timestamptz not null default now(),
+  count int not null default 0,
+  primary key (user_id, route)
+);
+
+grant select, insert, update, delete on public.rate_limits to authenticated;
+
+alter table public.rate_limits enable row level security;
+
+drop policy if exists "Users can manage their own rate limit bucket" on public.rate_limits;
+create policy "Users can manage their own rate limit bucket"
+  on public.rate_limits for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Atomic check-and-increment: a single INSERT ... ON CONFLICT is row-locked,
+-- so concurrent requests from the same user can't race past the limit.
+-- SECURITY INVOKER (the default) for consistency with match_entries, though
+-- bypass isn't a real security concern here since the function only ever
+-- touches the caller's own bucket via auth.uid().
+create or replace function public.check_rate_limit (
+  p_route text,
+  p_limit int,
+  p_window_seconds int
+)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_count int;
+begin
+  insert into public.rate_limits as rl (user_id, route, window_start, count)
+  values (auth.uid(), p_route, now(), 1)
+  on conflict (user_id, route) do update
+    set count = case
+          when rl.window_start < now() - (p_window_seconds || ' seconds')::interval
+            then 1
+          else rl.count + 1
+        end,
+        window_start = case
+          when rl.window_start < now() - (p_window_seconds || ' seconds')::interval
+            then now()
+          else rl.window_start
+        end
+  returning count into v_count;
+
+  return v_count <= p_limit;
+end;
+$$;

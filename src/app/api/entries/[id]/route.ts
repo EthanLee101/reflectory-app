@@ -5,28 +5,16 @@ import { detectCrisis } from "@/lib/crisis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
-/** GET /api/entries — list the current user's entries (RLS-scoped). */
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data, error } = await supabase
-    .from("entries")
-    .select("id, user_id, content, created_at")
-    .order("created_at", { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ entries: data });
-}
-
 /**
- * POST /api/entries — create an entry.
- * Generates an embedding for pgvector retrieval and runs the crisis check.
+ * PATCH /api/entries/:id — edit an entry's content.
+ * Re-generates the embedding and re-runs the crisis check, same as creation,
+ * since both depend on the entry's text.
  */
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,28 +40,54 @@ export async function POST(request: Request) {
     );
   }
 
-  // Run embedding and crisis detection together — they're independent.
   let embedding: number[];
   let crisis: Awaited<ReturnType<typeof detectCrisis>>;
   try {
-    [embedding, crisis] = await Promise.all([
-      embed(content),
-      detectCrisis(content),
-    ]);
+    [embedding, crisis] = await Promise.all([embed(content), detectCrisis(content)]);
   } catch (err) {
-    console.error("POST /api/entries: embedding failed", err);
+    console.error("PATCH /api/entries/[id]: embedding failed", err);
     const message = err instanceof Error ? err.message : "Embedding failed";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
   const { data, error } = await supabase
     .from("entries")
-    // user_id is set by a DB default (auth.uid()); RLS enforces ownership.
-    .insert({ content, embedding })
+    .update({ content, embedding })
+    .eq("id", id)
     .select("id, user_id, content, created_at")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
 
   return NextResponse.json({ entry: data, crisis });
+}
+
+/**
+ * DELETE /api/entries/:id — delete an entry.
+ * RLS scopes the query to the caller's own rows, so a missing/foreign id
+ * looks identical to "not found" here — that's intentional.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await supabase
+    .from("entries")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  return new NextResponse(null, { status: 204 });
 }

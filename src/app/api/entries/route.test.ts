@@ -107,7 +107,7 @@ describe("POST /api/entries", () => {
     const res = await POST(makeRequest({ content: "hello" }));
     const json = await res.json();
     expect(res.status).toBe(502);
-    expect(json.error).toBe("embedding service down");
+    expect(json.error).toBe("Failed to process entry");
   });
 
   it("creates the entry on success", async () => {

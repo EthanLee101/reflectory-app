@@ -1,3 +1,4 @@
+import "server-only";
 import { gemini } from "@/lib/gemini";
 import { serverEnv } from "@/lib/env";
 import type { CrisisResult } from "@/lib/types";

@@ -46,18 +46,21 @@ export async function PATCH(
     [embedding, crisis] = await Promise.all([embed(content), detectCrisis(content)]);
   } catch (err) {
     console.error("PATCH /api/entries/[id]: embedding failed", err);
-    const message = err instanceof Error ? err.message : "Embedding failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: "Failed to process entry" }, { status: 502 });
   }
 
   const { data, error } = await supabase
     .from("entries")
     .update({ content, embedding })
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("id, user_id, content, created_at")
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("PATCH /api/entries/[id]: update failed", error);
+    return NextResponse.json({ error: "Failed to save entry" }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
 
   return NextResponse.json({ entry: data, crisis });
@@ -83,10 +86,14 @@ export async function DELETE(
     .from("entries")
     .delete()
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("id")
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("DELETE /api/entries/[id]: delete failed", error);
+    return NextResponse.json({ error: "Failed to delete entry" }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
 
   return new NextResponse(null, { status: 204 });

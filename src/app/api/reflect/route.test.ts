@@ -138,7 +138,7 @@ describe("POST /api/reflect", () => {
     const res = await POST(makeRequest({ content: "some entry text" }));
     const json = await res.json();
     expect(res.status).toBe(502);
-    expect(json.error).toBe("classifier network error");
+    expect(json.error).toBe("Failed to generate reflection");
   });
 
   it("returns 502 when retrieval or generation throws", async () => {
@@ -147,6 +147,6 @@ describe("POST /api/reflect", () => {
     const res = await POST(makeRequest({ content: "some entry text" }));
     const json = await res.json();
     expect(res.status).toBe(502);
-    expect(json.error).toBe("pgvector rpc failed");
+    expect(json.error).toBe("Failed to generate reflection");
   });
 });

@@ -63,7 +63,6 @@ export async function POST(request: Request) {
     return NextResponse.json(response);
   } catch (err) {
     console.error("POST /api/reflect: reflection failed", err);
-    const message = err instanceof Error ? err.message : "Reflection failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: "Failed to generate reflection" }, { status: 502 });
   }
 }

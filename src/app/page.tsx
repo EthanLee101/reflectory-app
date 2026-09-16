@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import Navbar from "@/components/Navbar";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -27,7 +28,11 @@ export default async function Home() {
         <div className="absolute right-[170px] top-[170px] h-[230px] w-[230px] rounded-full border border-accent/15" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-7 px-6 py-20 lg:items-start lg:px-16">
+      <div className="relative">
+        <Navbar userEmail={user?.email ?? undefined} />
+      </div>
+
+      <div className="relative mx-auto flex min-h-[calc(100vh-73px)] max-w-4xl flex-col justify-center gap-7 px-6 py-20 lg:items-start lg:px-16">
         <div
           className="animate-[fade-rise_0.7s_ease-out_both] text-xs font-bold uppercase tracking-[0.22em] text-accent"
           style={{ animationDelay: "0ms" }}

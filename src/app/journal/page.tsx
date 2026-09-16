@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Entry } from "@/lib/types";
+import Navbar from "@/components/Navbar";
 import JournalClient from "@/components/JournalClient";
 
 export default async function JournalPage() {
@@ -28,11 +29,11 @@ export default async function JournalPage() {
             "radial-gradient(ellipse 800px 500px at 90% 0%, rgba(217,162,76,0.10), transparent 60%)",
         }}
       />
-      <div className="relative mx-auto max-w-2xl px-6 py-14">
-        <JournalClient
-          initialEntries={(entries ?? []) as Entry[]}
-          userEmail={user.email ?? ""}
-        />
+      <div className="relative">
+        <Navbar userEmail={user.email ?? ""} />
+        <div className="mx-auto max-w-5xl px-6 py-12 lg:py-16">
+          <JournalClient initialEntries={(entries ?? []) as Entry[]} />
+        </div>
       </div>
     </main>
   );

@@ -18,7 +18,10 @@ export async function GET() {
     .select("id, user_id, content, created_at")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("GET /api/entries: query failed", error);
+    return NextResponse.json({ error: "Failed to load entries" }, { status: 500 });
+  }
   return NextResponse.json({ entries: data });
 }
 
@@ -62,8 +65,7 @@ export async function POST(request: Request) {
     ]);
   } catch (err) {
     console.error("POST /api/entries: embedding failed", err);
-    const message = err instanceof Error ? err.message : "Embedding failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: "Failed to process entry" }, { status: 502 });
   }
 
   const { data, error } = await supabase
@@ -73,7 +75,10 @@ export async function POST(request: Request) {
     .select("id, user_id, content, created_at")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("POST /api/entries: insert failed", error);
+    return NextResponse.json({ error: "Failed to save entry" }, { status: 500 });
+  }
 
   return NextResponse.json({ entry: data, crisis });
 }

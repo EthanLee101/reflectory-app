@@ -93,7 +93,7 @@ describe("PATCH /api/entries/[id]", () => {
     const res = await PATCH(makeRequest({ content: "updated" }), ctx());
     const json = await res.json();
     expect(res.status).toBe(502);
-    expect(json.error).toBe("embedding service down");
+    expect(json.error).toBe("Failed to process entry");
   });
 
   it("returns 404 when the entry doesn't exist or isn't owned by the caller", async () => {

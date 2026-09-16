@@ -1,5 +1,19 @@
 import type { Metadata } from "next";
+import { Alegreya, Karla } from "next/font/google";
 import "./globals.css";
+
+const alegreya = Alegreya({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  style: ["normal", "italic"],
+  variable: "--font-alegreya",
+});
+
+const karla = Karla({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-karla",
+});
 
 export const metadata: Metadata = {
   title: "Journal Buddy",
@@ -13,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${alegreya.variable} ${karla.variable}`}>
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );

@@ -1,19 +1,67 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf7f2;
-  --foreground: #2f2a25;
+  /* Candlelight: a deep warm ground with an amber accent, evoking lamplight
+     against dark wood/paper. This app commits to one dark aesthetic rather
+     than adapting to system light/dark preference. */
+  --background: #1c1512;
+  --foreground: #f0e4d3;
+
+  --surface: #241a15;
+  --surface-2: #2c2019;
+  --border: #4a3728;
+  --border-soft: #3a2b21;
+  --muted: #b9a58e;
+  --faint: #8a7a68;
+
+  --accent: #d9a24c;
+  --accent-strong: #ecc07a;
+  --accent-ink: #201406;
+
+  --danger-bg: #58141c;
+  --danger-strong: #ef4a5c;
+  --danger-text: #fbe4e6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-text: var(--danger-text);
+  --font-sans: var(--font-karla), -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-alegreya), Georgia, serif;
 }
 
 html,
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+body {
+  min-height: 100dvh;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

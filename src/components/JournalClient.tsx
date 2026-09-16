@@ -136,12 +136,17 @@ export default function JournalClient({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Your journal</h1>
-        <div className="flex items-center gap-3 text-sm text-foreground/60">
+        <h1 className="font-serif text-2xl italic text-foreground">
+          Journal Buddy
+        </h1>
+        <div className="flex items-center gap-4 text-sm text-faint">
           <span>{userEmail}</span>
-          <button onClick={signOut} className="underline underline-offset-4">
+          <button
+            onClick={signOut}
+            className="text-muted underline underline-offset-4"
+          >
             Sign out
           </button>
         </div>
@@ -149,24 +154,27 @@ export default function JournalClient({
 
       {crisis && <CrisisBanner />}
 
-      <form onSubmit={saveEntry} className="space-y-3">
+      <form
+        onSubmit={saveEntry}
+        className="rounded-sm border border-border-soft bg-gradient-to-br from-surface to-surface-2 p-6 shadow-[0_24px_50px_rgba(0,0,0,0.35)]"
+      >
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="What's on your mind today?"
-          rows={5}
+          rows={4}
           maxLength={MAX_ENTRY_LENGTH}
-          className="w-full rounded-xl border border-foreground/15 bg-white p-4 outline-none focus:border-foreground/40"
+          className="w-full resize-none border-b border-border-soft bg-transparent pb-6 text-[15px] text-foreground outline-none placeholder:font-serif placeholder:text-base placeholder:italic placeholder:text-faint"
         />
-        <div className="flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between">
           <button
             type="submit"
             disabled={saving || !draft.trim()}
-            className="rounded-full bg-foreground px-5 py-2 text-background transition hover:opacity-90 disabled:opacity-50"
+            className="rounded-full bg-accent px-6 py-2.5 text-sm font-bold text-accent-ink transition hover:opacity-90 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save entry"}
           </button>
-          <span className="text-xs text-foreground/40">
+          <span className="text-xs text-faint">
             {draft.length}/{MAX_ENTRY_LENGTH}
           </span>
         </div>
@@ -174,40 +182,34 @@ export default function JournalClient({
 
       <section className="space-y-4">
         {entries.length === 0 && (
-          <p className="text-foreground/50">
-            No entries yet. Your first one is above.
-          </p>
+          <p className="text-faint">No entries yet. Your first one is above.</p>
         )}
 
         {entries.map((entry) =>
           editingId === entry.id ? (
             <article
               key={entry.id}
-              className="rounded-xl border border-foreground/10 bg-white p-4"
+              className="rounded-sm border border-border-soft bg-surface p-5"
             >
               <textarea
                 value={editDraft}
                 onChange={(e) => setEditDraft(e.target.value)}
                 rows={5}
                 maxLength={MAX_ENTRY_LENGTH}
-                className="w-full rounded-xl border border-foreground/15 bg-white p-4 outline-none focus:border-foreground/40"
+                className="w-full resize-none rounded-sm border border-border bg-transparent p-3 text-[15px] text-foreground outline-none focus:border-accent"
               />
-              <div className="mt-3 flex items-center justify-between text-xs text-foreground/40">
+              <div className="mt-3 flex items-center justify-between text-xs text-faint">
                 <span>
                   {editDraft.length}/{MAX_ENTRY_LENGTH}
                 </span>
                 <div className="flex gap-2">
-                  <button
-                    onClick={cancelEdit}
-                    disabled={savingEdit}
-                    className="rounded-full border border-foreground/20 px-3 py-1 text-foreground/70 transition hover:bg-foreground/5 disabled:opacity-50"
-                  >
+                  <ActionPill onClick={cancelEdit} disabled={savingEdit}>
                     Cancel
-                  </button>
+                  </ActionPill>
                   <button
                     onClick={() => saveEdit(entry)}
                     disabled={savingEdit || !editDraft.trim()}
-                    className="rounded-full bg-foreground px-3 py-1 text-background transition hover:opacity-90 disabled:opacity-50"
+                    className="rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-accent-ink transition hover:opacity-90 disabled:opacity-50"
                   >
                     {savingEdit ? "Saving…" : "Save"}
                   </button>
@@ -217,32 +219,35 @@ export default function JournalClient({
           ) : (
             <article
               key={entry.id}
-              className="rounded-xl border border-foreground/10 bg-white p-4"
+              className="rounded-sm border border-border-soft bg-surface p-5"
             >
-              <p className="whitespace-pre-wrap">{entry.content}</p>
-              <div className="mt-3 flex items-center justify-between text-xs text-foreground/40">
-                <time>{new Date(entry.created_at).toLocaleString()}</time>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => startEdit(entry)}
-                    className="rounded-full border border-foreground/20 px-3 py-1 text-foreground/70 transition hover:bg-foreground/5"
-                  >
+              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+                {entry.content}
+              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
+                <time className="text-xs text-faint">
+                  {new Date(entry.created_at).toLocaleString()}
+                </time>
+                <div className="flex flex-wrap gap-2">
+                  <ActionPill onClick={() => startEdit(entry)}>
+                    <PencilIcon />
                     Edit
-                  </button>
-                  <button
+                  </ActionPill>
+                  <ActionPill
                     onClick={() => deleteEntry(entry)}
                     disabled={deletingId === entry.id}
-                    className="rounded-full border border-foreground/20 px-3 py-1 text-foreground/70 transition hover:bg-foreground/5 disabled:opacity-50"
                   >
+                    <TrashIcon />
                     {deletingId === entry.id ? "Deleting…" : "Delete"}
-                  </button>
-                  <button
+                  </ActionPill>
+                  <ActionPill
                     onClick={() => reflect(entry)}
                     disabled={reflectingId === entry.id}
-                    className="rounded-full border border-foreground/20 px-3 py-1 text-foreground/70 transition hover:bg-foreground/5 disabled:opacity-50"
+                    variant="accent"
                   >
+                    <SparkleIcon />
                     {reflectingId === entry.id ? "Reflecting…" : "Reflect on this"}
-                  </button>
+                  </ActionPill>
                 </div>
               </div>
 
@@ -257,26 +262,94 @@ export default function JournalClient({
   );
 }
 
+function ActionPill({
+  onClick,
+  disabled,
+  variant = "default",
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "default" | "accent";
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={
+        variant === "accent"
+          ? "inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent-strong transition hover:bg-accent/15 disabled:opacity-50"
+          : "inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted transition hover:bg-foreground/5 disabled:opacity-50"
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 /**
  * Renders the reflection under the entry it was generated for, plus the past
  * entries used to ground it — so the RAG is visibly working.
  */
 function ReflectionPanel({ data }: { data: ReflectResponse }) {
   return (
-    <div className="mt-4 space-y-3 rounded-lg bg-foreground/5 p-4">
-      <p className="whitespace-pre-wrap text-sm">{data.reflection}</p>
+    <div className="mt-5 rounded-sm border border-accent/25 bg-gradient-to-br from-accent/[0.09] to-accent/[0.03] p-5">
+      <p className="whitespace-pre-wrap font-serif text-base italic leading-relaxed text-foreground">
+        {data.reflection}
+      </p>
       {data.grounding.length > 0 && (
-        <details className="text-xs text-foreground/50">
-          <summary className="cursor-pointer">
+        <details className="mt-4 border-t border-accent/15 pt-4 text-xs text-faint">
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold [&::-webkit-details-marker]:hidden">
+            <ChevronIcon />
             Grounded in {data.grounding.length} past{" "}
             {data.grounding.length === 1 ? "entry" : "entries"}
           </summary>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-3 space-y-2">
             {data.grounding.map((g) => (
-              <li key={g.id}>
-                {new Date(g.created_at).toLocaleDateString()} —{" "}
-                {g.content.slice(0, 80)}
-                {g.content.length > 80 ? "…" : ""}
+              <li key={g.id} className="flex gap-2">
+                <span className="shrink-0">
+                  {new Date(g.created_at).toLocaleDateString()}
+                </span>
+                <span>
+                  {g.content.slice(0, 80)}
+                  {g.content.length > 80 ? "…" : ""}
+                </span>
               </li>
             ))}
           </ul>

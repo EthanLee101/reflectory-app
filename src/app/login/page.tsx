@@ -58,69 +58,101 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6">
-      <h1 className="text-2xl font-semibold">
-        {mode === "signin" ? "Welcome back" : "Create your journal"}
-      </h1>
-
-      <button
-        type="button"
-        onClick={handleGoogleSignIn}
-        className="w-full rounded-lg border border-foreground/15 bg-white px-4 py-2 font-medium transition hover:bg-foreground/5"
-      >
-        Continue with Google
-      </button>
-
-      <div className="flex items-center gap-3 text-xs text-foreground/40">
-        <div className="h-px flex-1 bg-foreground/15" />
-        or
-        <div className="h-px flex-1 bg-foreground/15" />
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="email"
-          required
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-foreground/15 bg-white px-3 py-2 outline-none focus:border-foreground/40"
-        />
-        <input
-          type="password"
-          required
-          minLength={6}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-foreground/15 bg-white px-3 py-2 outline-none focus:border-foreground/40"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-foreground px-4 py-2 text-background transition hover:opacity-90 disabled:opacity-50"
-        >
-          {loading
-            ? "…"
-            : mode === "signin"
-              ? "Sign in"
-              : "Sign up"}
-        </button>
-      </form>
-
-      {message && <p className="text-sm text-foreground/70">{message}</p>}
-
-      <button
-        onClick={() => {
-          setMode(mode === "signin" ? "signup" : "signin");
-          setMessage(null);
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 lg:justify-start lg:pl-32">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 700px 700px at 14% 8%, rgba(217,162,76,0.13), transparent 60%), radial-gradient(ellipse 900px 600px at 100% 100%, rgba(217,162,76,0.08), transparent 60%)",
         }}
-        className="text-sm text-foreground/60 underline underline-offset-4"
-      >
-        {mode === "signin"
-          ? "Need an account? Sign up"
-          : "Already have an account? Sign in"}
-      </button>
+      />
+
+      <div className="relative w-full max-w-md rounded-sm border border-border-soft bg-gradient-to-br from-surface to-surface-2 p-10 shadow-[0_40px_80px_rgba(0,0,0,0.45)]">
+        <div className="text-xs font-bold uppercase tracking-[0.2em] text-accent">
+          {mode === "signin" ? "Welcome back" : "Get started"}
+        </div>
+        <h1 className="mb-8 mt-2.5 font-serif text-4xl italic text-foreground">
+          {mode === "signin" ? "Continue journaling" : "Create your journal"}
+        </h1>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="flex w-full items-center justify-center gap-3 rounded-sm border border-border bg-foreground/[0.03] py-3.5 font-semibold text-foreground transition hover:bg-foreground/[0.06]"
+        >
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#EFC077" d="M43.6 20.5H42V20.4H24v7.2h11.3C33.6 32 29.2 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.1-5.1C33.9 5.6 29.2 3.6 24 3.6 12.7 3.6 3.6 12.7 3.6 24S12.7 44.4 24 44.4 44.4 35.3 44.4 24c0-1.2-.1-2.4-.3-3.5z" />
+            <path fill="#D9A24C" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.1-5.1C33.9 7.6 29.2 5.6 24 5.6c-7.3 0-13.6 4.2-16.7 10.1z" />
+            <path fill="#B9793B" d="M24 44.4c5.1 0 9.7-1.9 13.1-5.1l-6.1-5c-1.8 1.3-4.2 2.1-7 2.1-5.2 0-9.6-3.1-11.2-7.6l-6.5 5C9 40.5 15.9 44.4 24 44.4z" />
+            <path fill="#8A6A34" d="M43.6 20.5H42V20.4H24v7.2h11.3c-.8 2.6-2.6 4.8-4.9 6.2l6.1 5c3.5-3.3 5.9-8.1 5.9-14 0-1.2-.1-2.4-.3-3.9z" />
+          </svg>
+          Continue with Google
+        </button>
+
+        <div className="my-7 flex items-center gap-3.5 text-xs uppercase tracking-[0.1em] text-faint">
+          <div className="h-px flex-1 bg-border-soft" />
+          or
+          <div className="h-px flex-1 bg-border-soft" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <input
+            type="email"
+            required
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border-b border-border bg-transparent py-2.5 text-foreground outline-none placeholder:text-faint focus:border-accent"
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border-b border-border bg-transparent py-2.5 text-foreground outline-none placeholder:text-faint focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-sm bg-accent py-3.5 font-bold text-accent-ink transition hover:opacity-90 disabled:opacity-50"
+          >
+            {loading
+              ? "…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Sign up"}
+          </button>
+        </form>
+
+        {message && <p className="mt-5 text-sm text-muted">{message}</p>}
+
+        <button
+          onClick={() => {
+            setMode(mode === "signin" ? "signup" : "signin");
+            setMessage(null);
+          }}
+          className="mt-6 text-sm text-muted"
+        >
+          {mode === "signin" ? (
+            <>
+              Need an account?{" "}
+              <span className="text-accent-strong underline underline-offset-4">
+                Sign up
+              </span>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <span className="text-accent-strong underline underline-offset-4">
+                Sign in
+              </span>
+            </>
+          )}
+        </button>
+      </div>
     </main>
   );
 }

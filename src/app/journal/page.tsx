@@ -19,11 +19,21 @@ export default async function JournalPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
-      <JournalClient
-        initialEntries={(entries ?? []) as Entry[]}
-        userEmail={user.email ?? ""}
+    <main className="relative min-h-screen overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 800px 500px at 90% 0%, rgba(217,162,76,0.10), transparent 60%)",
+        }}
       />
+      <div className="relative mx-auto max-w-2xl px-6 py-14">
+        <JournalClient
+          initialEntries={(entries ?? []) as Entry[]}
+          userEmail={user.email ?? ""}
+        />
+      </div>
     </main>
   );
 }

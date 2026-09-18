@@ -29,6 +29,16 @@ describe("checkRateLimit", () => {
     });
   });
 
+  it("calls check_rate_limit with the search limits", async () => {
+    rpcMock.mockResolvedValue({ data: true, error: null });
+    await checkRateLimit(fakeSupabase, "search");
+    expect(rpcMock).toHaveBeenCalledWith("check_rate_limit", {
+      p_route: "search",
+      p_limit: 30,
+      p_window_seconds: 300,
+    });
+  });
+
   it("returns true when the RPC reports the limit was not exceeded", async () => {
     rpcMock.mockResolvedValue({ data: true, error: null });
     const result = await checkRateLimit(fakeSupabase, "reflect");

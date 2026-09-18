@@ -158,16 +158,18 @@ export default function AppTour({ onClose }: { onClose: () => void }) {
         className="fixed rounded-sm border border-accent/40 bg-gradient-to-br from-surface to-surface-2 p-5 shadow-[0_24px_50px_rgba(0,0,0,0.45)] outline-none"
         style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
       >
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
-          Step {stepIndex + 1} of {STEPS.length}
-        </p>
-        <h3
-          id={TITLE_ID}
-          className="mt-2 font-serif text-lg italic text-foreground"
-        >
-          {step.title}
-        </h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
+        <div key={stepIndex} className="animate-[fade-rise_0.3s_ease-out_both]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
+            Step {stepIndex + 1} of {STEPS.length}
+          </p>
+          <h3
+            id={TITLE_ID}
+            className="mt-2 font-serif text-lg italic text-foreground"
+          >
+            {step.title}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
+        </div>
         <div className="mt-4 flex items-center justify-between">
           <button
             onClick={close}

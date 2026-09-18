@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { embed } from "@/lib/embeddings";
 import { detectCrisis } from "@/lib/crisis";
+import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
@@ -15,7 +16,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("entries")
-    .select("id, user_id, content, created_at")
+    .select("id, user_id, content, themes, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -55,13 +56,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Run embedding and crisis detection together — they're independent.
+  // Run embedding, crisis detection, and theme extraction together — they're
+  // independent. Theme extraction fails soft internally (see extractThemes),
+  // so it never causes this Promise.all to reject.
   let embedding: number[];
   let crisis: Awaited<ReturnType<typeof detectCrisis>>;
+  let themes: string[];
   try {
-    [embedding, crisis] = await Promise.all([
+    [embedding, crisis, themes] = await Promise.all([
       embed(content),
       detectCrisis(content),
+      extractThemes(content),
     ]);
   } catch (err) {
     console.error("POST /api/entries: embedding failed", err);
@@ -71,8 +76,8 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("entries")
     // user_id is set by a DB default (auth.uid()); RLS enforces ownership.
-    .insert({ content, embedding })
-    .select("id, user_id, content, created_at")
+    .insert({ content, embedding, themes })
+    .select("id, user_id, content, themes, created_at")
     .single();
 
   if (error) {

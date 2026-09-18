@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { embed } from "@/lib/embeddings";
 import { detectCrisis } from "@/lib/crisis";
+import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
@@ -42,8 +43,13 @@ export async function PATCH(
 
   let embedding: number[];
   let crisis: Awaited<ReturnType<typeof detectCrisis>>;
+  let themes: string[];
   try {
-    [embedding, crisis] = await Promise.all([embed(content), detectCrisis(content)]);
+    [embedding, crisis, themes] = await Promise.all([
+      embed(content),
+      detectCrisis(content),
+      extractThemes(content),
+    ]);
   } catch (err) {
     console.error("PATCH /api/entries/[id]: embedding failed", err);
     return NextResponse.json({ error: "Failed to process entry" }, { status: 502 });
@@ -51,10 +57,10 @@ export async function PATCH(
 
   const { data, error } = await supabase
     .from("entries")
-    .update({ content, embedding })
+    .update({ content, embedding, themes })
     .eq("id", id)
     .eq("user_id", user.id)
-    .select("id, user_id, content, created_at")
+    .select("id, user_id, content, themes, created_at")
     .maybeSingle();
 
   if (error) {

@@ -21,6 +21,7 @@ const {
   fromMock,
   embedMock,
   detectCrisisMock,
+  extractThemesMock,
   checkRateLimitMock,
 } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
@@ -28,6 +29,7 @@ const {
   fromMock: vi.fn(),
   embedMock: vi.fn(),
   detectCrisisMock: vi.fn(),
+  extractThemesMock: vi.fn(),
   checkRateLimitMock: vi.fn(),
 }));
 
@@ -38,6 +40,7 @@ createClientMock.mockImplementation(() =>
 vi.mock("@/lib/supabase/server", () => ({ createClient: createClientMock }));
 vi.mock("@/lib/embeddings", () => ({ embed: embedMock }));
 vi.mock("@/lib/crisis", () => ({ detectCrisis: detectCrisisMock }));
+vi.mock("@/lib/themes", () => ({ extractThemes: extractThemesMock }));
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: checkRateLimitMock }));
 
 import { GET, POST } from "@/app/api/entries/route";
@@ -55,6 +58,7 @@ beforeEach(() => {
   fromMock.mockReset();
   embedMock.mockReset();
   detectCrisisMock.mockReset();
+  extractThemesMock.mockReset().mockResolvedValue([]);
   checkRateLimitMock.mockReset().mockResolvedValue(true);
 });
 

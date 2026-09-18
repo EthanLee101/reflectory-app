@@ -19,8 +19,8 @@ export default function ActionPill({
       {...rest}
       className={
         variant === "accent"
-          ? "inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent-strong transition hover:bg-accent/15 disabled:opacity-50"
-          : "inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted transition hover:bg-foreground/5 disabled:opacity-50"
+          ? "inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent-strong transition hover:-translate-y-0.5 hover:bg-accent/15 hover:shadow-[0_6px_16px_rgba(217,162,76,0.25)] disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
+          : "inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted transition hover:-translate-y-0.5 hover:bg-foreground/5 disabled:translate-y-0 disabled:opacity-50"
       }
     >
       {children}

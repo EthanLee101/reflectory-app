@@ -1,10 +1,35 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveRelevantEntries, generateReflection } from "@/lib/rag";
 import { detectCrisis } from "@/lib/crisis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 import type { ReflectResponse } from "@/lib/types";
+
+/**
+ * Best-effort persistence so past reflections survive a reload. Never throws:
+ * the user already has their reflection by the time this runs, so a write
+ * failure here should only be logged, not surfaced as a request failure.
+ */
+async function persistReflection(
+  supabase: SupabaseClient,
+  entryId: string,
+  response: ReflectResponse
+) {
+  try {
+    const { error } = await supabase.from("reflections").insert({
+      entry_id: entryId,
+      content: response.reflection,
+      grounding: response.grounding,
+      crisis_triggered: response.crisis.triggered,
+      crisis_source: response.crisis.source,
+    });
+    if (error) console.error("persistReflection: insert failed", error);
+  } catch (err) {
+    console.error("persistReflection: unexpected error", err);
+  }
+}
 
 /**
  * POST /api/reflect — the RAG heart of the app.
@@ -40,6 +65,21 @@ export async function POST(request: Request) {
     );
   }
 
+  let validEntryId: string | undefined;
+  if (typeof entryId === "string") {
+    try {
+      const { data: owned } = await supabase
+        .from("entries")
+        .select("id")
+        .eq("id", entryId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (owned) validEntryId = entryId;
+    } catch (err) {
+      console.error("POST /api/reflect: entry ownership check failed", err);
+    }
+  }
+
   try {
     const crisis = await detectCrisis(content);
     if (crisis.triggered) {
@@ -49,17 +89,19 @@ export async function POST(request: Request) {
         grounding: [],
         crisis,
       };
+      if (validEntryId) await persistReflection(supabase, validEntryId, safe);
       return NextResponse.json(safe);
     }
 
     const grounding = await retrieveRelevantEntries(supabase, content, {
       topK: 4,
-      excludeEntryId: typeof entryId === "string" ? entryId : undefined,
+      excludeEntryId: validEntryId,
     });
 
     const reflection = await generateReflection(content, grounding);
 
     const response: ReflectResponse = { reflection, grounding, crisis };
+    if (validEntryId) await persistReflection(supabase, validEntryId, response);
     return NextResponse.json(response);
   } catch (err) {
     console.error("POST /api/reflect: reflection failed", err);

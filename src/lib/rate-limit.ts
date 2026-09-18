@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-type RouteKey = "entries:write" | "reflect";
+type RouteKey = "entries:write" | "reflect" | "search";
 
 /**
  * Per-route limits. Generous for real journaling use, but bound a scripted
@@ -9,6 +9,9 @@ type RouteKey = "entries:write" | "reflect";
 const LIMITS: Record<RouteKey, { limit: number; windowSeconds: number }> = {
   "entries:write": { limit: 20, windowSeconds: 300 },
   reflect: { limit: 15, windowSeconds: 300 },
+  // Search is a single embed + pgvector RPC (cheaper than reflect), so it
+  // gets a more generous budget.
+  search: { limit: 30, windowSeconds: 300 },
 };
 
 /**

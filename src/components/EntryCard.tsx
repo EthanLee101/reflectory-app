@@ -5,11 +5,13 @@ import type { Entry, ReflectResponse } from "@/lib/types";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 import ActionPill from "@/components/ActionPill";
 import ReflectionPanel from "@/components/ReflectionPanel";
+import ReflectionHistory from "@/components/ReflectionHistory";
 import { PencilIcon, TrashIcon, SparkleIcon } from "@/components/icons";
 
 export default function EntryCard({
   entry,
   isFirst,
+  index,
   deleting,
   reflecting,
   reflection,
@@ -20,6 +22,8 @@ export default function EntryCard({
   entry: Entry;
   /** Marks the "Reflect on this" pill on the most recent entry for the app tour. */
   isFirst: boolean;
+  /** Position in the visible list; staggers this card's entrance animation. */
+  index: number;
   deleting: boolean;
   reflecting: boolean;
   reflection: ReflectResponse | null;
@@ -76,10 +80,27 @@ export default function EntryCard({
   }
 
   return (
-    <article className="rounded-sm border border-border-soft bg-surface p-6 lg:p-7">
+    <article
+      className="animate-[fade-rise_0.5s_ease-out_both] rounded-sm border border-border-soft bg-surface p-6 lg:p-7"
+      style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}
+    >
       <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-foreground">
         {entry.content}
       </p>
+
+      {entry.themes.length > 0 && (
+        <ul className="mt-4 flex flex-wrap gap-1.5">
+          {entry.themes.map((theme) => (
+            <li
+              key={theme}
+              className="rounded-full border border-border-soft bg-surface-2 px-2.5 py-0.5 text-xs text-faint"
+            >
+              {theme}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
         <time className="text-xs text-faint">
           {new Date(entry.created_at).toLocaleString()}
@@ -106,6 +127,8 @@ export default function EntryCard({
       </div>
 
       {reflection && <ReflectionPanel data={reflection} />}
+
+      <ReflectionHistory entryId={entry.id} />
     </article>
   );
 }

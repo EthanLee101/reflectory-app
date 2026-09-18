@@ -8,7 +8,7 @@ export default function CrisisBanner() {
   return (
     <div
       role="alert"
-      className="border-l-[5px] border-danger-strong bg-danger-bg p-6 shadow-[0_20px_50px_rgba(88,20,28,0.45)]"
+      className="animate-[fade-rise_0.4s_ease-out_both,glow-pulse_2.6s_ease-in-out_2] border-l-[5px] border-danger-strong bg-danger-bg p-6"
     >
       <div className="flex items-start gap-3.5">
         <svg

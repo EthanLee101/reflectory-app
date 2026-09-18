@@ -23,7 +23,10 @@ export default async function Home() {
         aria-hidden
         className="pointer-events-none absolute right-[-120px] top-24 hidden h-[560px] w-[560px] lg:block"
       >
-        <div className="absolute right-[120px] top-[120px] h-[320px] w-[320px] rounded-full blur-[2px]" style={{ background: "radial-gradient(circle, rgba(217,162,76,0.32) 0%, rgba(217,162,76,0.10) 45%, transparent 70%)" }} />
+        <div
+          className="absolute right-[120px] top-[120px] h-[320px] w-[320px] animate-[flicker_7s_ease-in-out_infinite] rounded-full blur-[2px]"
+          style={{ background: "radial-gradient(circle, rgba(217,162,76,0.32) 0%, rgba(217,162,76,0.10) 45%, transparent 70%)" }}
+        />
         <div className="absolute right-[220px] top-[220px] h-[130px] w-[130px] rounded-full border border-accent/25" />
         <div className="absolute right-[170px] top-[170px] h-[230px] w-[230px] rounded-full border border-accent/15" />
       </div>

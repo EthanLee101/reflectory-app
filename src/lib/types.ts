@@ -3,6 +3,8 @@ export interface Entry {
   id: string;
   user_id: string;
   content: string;
+  /** Short, LLM-extracted theme tags (e.g. "work stress"). Best-effort. */
+  themes: string[];
   created_at: string;
 }
 
@@ -28,4 +30,14 @@ export interface ReflectResponse {
   /** The past entries used to ground the reflection (for visible RAG). */
   grounding: RetrievedEntry[];
   crisis: CrisisResult;
+}
+
+/** A persisted past reflection, as stored in the `reflections` table. */
+export interface Reflection {
+  id: string;
+  entry_id: string;
+  content: string;
+  grounding: RetrievedEntry[];
+  crisis: CrisisResult;
+  created_at: string;
 }

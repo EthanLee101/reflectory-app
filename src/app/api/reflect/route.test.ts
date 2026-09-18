@@ -1,9 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
+function makeInsertBuilder(result: { error: unknown } = { error: null }) {
+  return { insert: vi.fn(() => Promise.resolve(result)) };
+}
+
+/** Mocks the `.from("entries").select(...).eq(...).eq(...).maybeSingle()` ownership check. */
+function makeEntriesBuilder(owned: { id: string } | null = { id: "owned" }) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(() => Promise.resolve({ data: owned })),
+        })),
+      })),
+    })),
+  };
+}
+
 const {
   getUserMock,
   createClientMock,
+  fromMock,
   detectCrisisMock,
   retrieveRelevantEntriesMock,
   generateReflectionMock,
@@ -11,6 +29,7 @@ const {
 } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   createClientMock: vi.fn(),
+  fromMock: vi.fn(),
   detectCrisisMock: vi.fn(),
   retrieveRelevantEntriesMock: vi.fn(),
   generateReflectionMock: vi.fn(),
@@ -18,7 +37,7 @@ const {
 }));
 
 createClientMock.mockImplementation(() =>
-  Promise.resolve({ auth: { getUser: getUserMock } })
+  Promise.resolve({ auth: { getUser: getUserMock }, from: fromMock })
 );
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -50,6 +69,11 @@ function makeRequest(body: unknown) {
 
 beforeEach(() => {
   getUserMock.mockReset().mockResolvedValue({ data: { user: { id: "u1" } } });
+  fromMock
+    .mockReset()
+    .mockImplementation((table: string) =>
+      table === "entries" ? makeEntriesBuilder() : makeInsertBuilder()
+    );
   detectCrisisMock.mockReset();
   retrieveRelevantEntriesMock.mockReset();
   generateReflectionMock.mockReset();
@@ -131,6 +155,97 @@ describe("POST /api/reflect", () => {
       grounding,
       crisis: { triggered: false, source: "none" },
     });
+  });
+
+  it("persists the reflection when an entryId is given", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    const insertMock = vi.fn(() => Promise.resolve({ error: null }));
+    fromMock.mockImplementation((table: string) =>
+      table === "entries" ? makeEntriesBuilder() : { insert: insertMock }
+    );
+
+    await POST(makeRequest({ content: "feeling okay today", entryId: "e0" }));
+
+    expect(fromMock).toHaveBeenCalledWith("reflections");
+    expect(insertMock).toHaveBeenCalledWith({
+      entry_id: "e0",
+      content: "a warm reflection",
+      grounding: [],
+      crisis_triggered: false,
+      crisis_source: "none",
+    });
+  });
+
+  it("does not persist or exclude an entryId that doesn't belong to the caller", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    fromMock.mockImplementation((table: string) =>
+      table === "entries" ? makeEntriesBuilder(null) : makeInsertBuilder()
+    );
+
+    await POST(
+      makeRequest({ content: "feeling okay today", entryId: "someone-elses-entry" })
+    );
+
+    expect(retrieveRelevantEntriesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "feeling okay today",
+      { topK: 4, excludeEntryId: undefined }
+    );
+    expect(fromMock).not.toHaveBeenCalledWith("reflections");
+  });
+
+  it("skips persistence when no entryId is given", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+
+    await POST(makeRequest({ content: "feeling okay today" }));
+
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("still returns the reflection even if persisting it fails", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    fromMock.mockImplementation((table: string) =>
+      table === "entries"
+        ? makeEntriesBuilder()
+        : {
+            insert: vi.fn(() => {
+              throw new Error("db unreachable");
+            }),
+          }
+    );
+
+    const res = await POST(
+      makeRequest({ content: "feeling okay today", entryId: "e0" })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.reflection).toBe("a warm reflection");
+  });
+
+  it("still returns the reflection even if the ownership check itself fails", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    fromMock.mockImplementation(() => {
+      throw new Error("db unreachable");
+    });
+
+    const res = await POST(
+      makeRequest({ content: "feeling okay today", entryId: "e0" })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.reflection).toBe("a warm reflection");
   });
 
   it("returns 502 when detectCrisis throws", async () => {

@@ -14,8 +14,14 @@ create table if not exists public.entries (
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
   content text not null,
   embedding vector(1536),
+  -- Short, LLM-extracted theme tags (e.g. "work stress", "gratitude").
+  -- Best-effort: extraction failure leaves this empty rather than blocking a save.
+  themes text[] not null default '{}',
   created_at timestamptz not null default now()
 );
+
+-- Existing databases: add the column if it predates this migration.
+alter table public.entries add column if not exists themes text[] not null default '{}';
 
 create index if not exists entries_user_id_created_at_idx
   on public.entries (user_id, created_at desc);
@@ -142,3 +148,37 @@ begin
   return v_count <= p_limit;
 end;
 $$;
+
+-- 6. Reflection history ------------------------------------------------
+-- Persists each generated reflection (and the grounding it used) so past
+-- reflections survive a page reload and can be revisited. Best-effort from
+-- the app's side: a write failure here never blocks returning the
+-- reflection to the user. NOTE: new section — re-run in the SQL editor.
+create table if not exists public.reflections (
+  id uuid primary key default gen_random_uuid(),
+  entry_id uuid not null references public.entries (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  content text not null,
+  -- Snapshot of the RetrievedEntry[] grounding used for this reflection.
+  grounding jsonb not null default '[]',
+  crisis_triggered boolean not null default false,
+  crisis_source text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reflections_entry_id_created_at_idx
+  on public.reflections (entry_id, created_at desc);
+
+grant select, insert on public.reflections to authenticated;
+
+alter table public.reflections enable row level security;
+
+drop policy if exists "Users can read their own reflections" on public.reflections;
+create policy "Users can read their own reflections"
+  on public.reflections for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own reflections" on public.reflections;
+create policy "Users can insert their own reflections"
+  on public.reflections for insert
+  with check (auth.uid() = user_id);

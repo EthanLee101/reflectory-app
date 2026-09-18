@@ -7,7 +7,7 @@ import { ChevronIcon } from "@/components/icons";
  */
 export default function ReflectionPanel({ data }: { data: ReflectResponse }) {
   return (
-    <div className="mt-5 rounded-sm border border-accent/25 bg-gradient-to-br from-accent/[0.09] to-accent/[0.03] p-5">
+    <div className="origin-top animate-[unfurl_0.5s_ease-out_both] rounded-sm border border-accent/25 bg-gradient-to-br from-accent/[0.09] to-accent/[0.03] p-5">
       <p className="whitespace-pre-wrap font-serif text-base italic leading-relaxed text-foreground">
         {data.reflection}
       </p>

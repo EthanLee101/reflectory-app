@@ -71,9 +71,9 @@ export default async function AboutPage() {
               </h2>
               <p>
                 Every entry and every reflection request is checked for signs
-                of real distress. If something concerning comes up, Journal
-                Buddy doesn&apos;t try to counsel you through it — it hands
-                off to real, current crisis resources instead. A dependable
+                of real distress. If something concerning comes up,
+                Reflectory doesn&apos;t try to counsel you through it — it
+                hands off to real, current crisis resources instead. A dependable
                 simple safeguard beats a clever one that might fail quietly.
               </p>
             </section>

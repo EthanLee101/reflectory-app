@@ -85,7 +85,6 @@ supabase/schema.sql         Database schema + RLS + retrieval/rate-limit functio
 ## Status
 
 All MVP milestones are complete: auth, journaling CRUD, RAG-grounded
-reflection, crisis routing, rate limiting, and UI polish. The remaining
-step is deploying to Vercel.
+reflection, crisis routing, rate limiting, and UI polish. Deployed to Vercel
 
 > Not a crisis service or a substitute for professional care.

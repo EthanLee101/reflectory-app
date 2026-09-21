@@ -47,10 +47,8 @@ export default async function Home() {
           className="animate-[fade-rise_0.7s_ease-out_both] font-serif text-6xl font-extrabold leading-[0.94] tracking-tight sm:text-7xl lg:text-8xl"
           style={{ animationDelay: "90ms" }}
         >
-          <span className="block">Reflect</span>
-          <span className="-mt-1 block font-medium italic text-accent-strong">
-            ory
-          </span>
+          <span>Reflect</span>
+          <span className="font-medium italic text-accent-strong">ory</span>
         </h1>
 
         <p

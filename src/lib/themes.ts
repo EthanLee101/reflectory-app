@@ -1,6 +1,8 @@
 import "server-only";
 import { gemini } from "@/lib/gemini";
 import { serverEnv } from "@/lib/env";
+import { GEMINI_THEME_TIMEOUT_MS } from "@/lib/constants";
+import { logError } from "@/lib/logger";
 
 /**
  * Extract 0–3 short theme tags from an entry (e.g. "work stress", "gratitude").
@@ -18,6 +20,7 @@ export async function extractThemes(text: string): Promise<string[]> {
         temperature: 0.2,
         maxOutputTokens: 60,
         thinkingConfig: { thinkingBudget: 0 },
+        abortSignal: AbortSignal.timeout(GEMINI_THEME_TIMEOUT_MS),
         systemInstruction:
           "You extract short theme tags from a journal entry. Return at most 3 tags as a JSON array of lowercase strings, 1-3 words each (e.g. [\"work stress\", \"gratitude\"]). Return an empty array if nothing clearly stands out. Do not explain.",
         responseMimeType: "application/json",
@@ -38,7 +41,7 @@ export async function extractThemes(text: string): Promise<string[]> {
       .filter(Boolean)
       .slice(0, 3);
   } catch (err) {
-    console.error("extractThemes: failed, continuing without tags", err);
+    logError("extractThemes", err, { note: "continuing without tags" });
     return [];
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "journal-buddy-v2",
+  "name": "reflectory",
   "version": "0.1.0",
   "private": true,
   "description": "AI journaling companion with RAG-grounded reflection and crisis-resource routing.",

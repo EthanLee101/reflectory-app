@@ -31,7 +31,7 @@ export default function CrisisBanner() {
             It sounds like you may be going through something really hard.
           </p>
           <p className="mt-1.5 text-sm text-danger-text/85">
-            Journal Buddy isn&apos;t a crisis service, but people who are
+            Reflectory isn&apos;t a crisis service, but people who are
             ready to help are available right now:
           </p>
         </div>

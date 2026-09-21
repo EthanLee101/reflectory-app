@@ -16,7 +16,7 @@ const karla = Karla({
 });
 
 export const metadata: Metadata = {
-  title: "Journal Buddy",
+  title: "Reflectory",
   description:
     "A warm, judgment-free space to journal — with an AI companion that reflects on your own history.",
 };

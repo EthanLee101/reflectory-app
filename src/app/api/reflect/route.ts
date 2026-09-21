@@ -4,8 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { retrieveRelevantEntries, generateReflection } from "@/lib/rag";
 import { detectCrisis } from "@/lib/crisis";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey } from "@/lib/idempotency";
+import { logError } from "@/lib/logger";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 import type { ReflectResponse } from "@/lib/types";
+
+// This route's steps run mostly sequentially (crisis check -> retrieve ->
+// generate), so give it headroom beyond Vercel's default function duration.
+export const maxDuration = 30;
 
 /**
  * Best-effort persistence so past reflections survive a reload. Never throws:
@@ -25,9 +31,9 @@ async function persistReflection(
       crisis_triggered: response.crisis.triggered,
       crisis_source: response.crisis.source,
     });
-    if (error) console.error("persistReflection: insert failed", error);
+    if (error) logError("persistReflection", error);
   } catch (err) {
-    console.error("persistReflection: unexpected error", err);
+    logError("persistReflection", err, { note: "unexpected error" });
   }
 }
 
@@ -54,11 +60,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (idempotencyKey) {
+    const claim = await claimIdempotencyKey(supabase, idempotencyKey, "reflect");
+    if (claim.replay === true) {
+      return NextResponse.json(claim.response, { status: claim.statusCode });
+    }
+    if (claim.replay === "conflict") {
+      return NextResponse.json(
+        { error: "Duplicate request already in progress." },
+        { status: 409 }
+      );
+    }
+  }
+
   const { entryId, content } = await request.json();
   if (typeof content !== "string" || !content.trim()) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "reflect");
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
   if (content.length > MAX_ENTRY_LENGTH) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "reflect");
     return NextResponse.json(
       { error: `Content must be ${MAX_ENTRY_LENGTH} characters or fewer` },
       { status: 400 }
@@ -76,7 +98,7 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (owned) validEntryId = entryId;
     } catch (err) {
-      console.error("POST /api/reflect: entry ownership check failed", err);
+      logError("POST /api/reflect", err, { stage: "ownership check" });
     }
   }
 
@@ -90,6 +112,7 @@ export async function POST(request: Request) {
         crisis,
       };
       if (validEntryId) await persistReflection(supabase, validEntryId, safe);
+      if (idempotencyKey) await completeIdempotencyKey(supabase, idempotencyKey, "reflect", safe, 200);
       return NextResponse.json(safe);
     }
 
@@ -102,9 +125,12 @@ export async function POST(request: Request) {
 
     const response: ReflectResponse = { reflection, grounding, crisis };
     if (validEntryId) await persistReflection(supabase, validEntryId, response);
+    if (idempotencyKey) await completeIdempotencyKey(supabase, idempotencyKey, "reflect", response, 200);
     return NextResponse.json(response);
   } catch (err) {
-    console.error("POST /api/reflect: reflection failed", err);
-    return NextResponse.json({ error: "Failed to generate reflection" }, { status: 502 });
+    logError("POST /api/reflect", err, { stage: "reflection" });
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "reflect");
+    const status = err instanceof Error && err.name === "TimeoutError" ? 504 : 502;
+    return NextResponse.json({ error: "Failed to generate reflection" }, { status });
   }
 }

@@ -74,7 +74,7 @@ export default async function Home() {
         </Link>
 
         <p className="mt-8 max-w-sm border-l-2 border-border pl-3.5 text-sm leading-relaxed text-faint">
-          Journal Buddy is not a crisis service or a substitute for
+          Reflectory is not a crisis service or a substitute for
           professional care. If you&apos;re in distress, it will point you to
           real support.
         </p>

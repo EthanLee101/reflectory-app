@@ -13,8 +13,14 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const passwordsMismatch =
+    mode === "signup" &&
+    confirmPassword.length > 0 &&
+    password !== confirmPassword;
 
   async function handleGoogleSignIn() {
     setMessage(null);
@@ -31,8 +37,14 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setMessage(null);
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setMessage("Passwords don't match.");
+      return;
+    }
+
+    setLoading(true);
 
     const { error } =
       mode === "signin"
@@ -114,9 +126,25 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border-b border-border bg-transparent py-2.5 text-foreground outline-none placeholder:text-faint focus:border-accent"
           />
+          {mode === "signup" && (
+            <>
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border-b border-border bg-transparent py-2.5 text-foreground outline-none placeholder:text-faint focus:border-accent"
+              />
+              {passwordsMismatch && (
+                <p className="text-sm text-muted">Passwords don&apos;t match.</p>
+              )}
+            </>
+          )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || passwordsMismatch}
             className="w-full rounded-sm bg-accent py-3.5 font-bold text-accent-ink transition hover:opacity-90 disabled:opacity-50"
           >
             {loading
@@ -133,6 +161,7 @@ export default function LoginPage() {
           onClick={() => {
             setMode(mode === "signin" ? "signup" : "signin");
             setMessage(null);
+            setConfirmPassword("");
           }}
           className="mt-6 text-sm text-muted"
         >

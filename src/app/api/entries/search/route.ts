@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveRelevantEntries } from "@/lib/rag";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/logger";
 import { MAX_SEARCH_QUERY_LENGTH } from "@/lib/constants";
 
 /**
@@ -40,7 +41,8 @@ export async function GET(request: Request) {
     const results = await retrieveRelevantEntries(supabase, q, { topK: 8 });
     return NextResponse.json({ results });
   } catch (err) {
-    console.error("GET /api/entries/search: retrieval failed", err);
-    return NextResponse.json({ error: "Search failed" }, { status: 502 });
+    logError("GET /api/entries/search", err);
+    const status = err instanceof Error && err.name === "TimeoutError" ? 504 : 502;
+    return NextResponse.json({ error: "Search failed" }, { status });
   }
 }

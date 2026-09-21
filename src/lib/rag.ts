@@ -2,6 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { gemini } from "@/lib/gemini";
 import { embed } from "@/lib/embeddings";
 import { serverEnv } from "@/lib/env";
+import {
+  GEMINI_REFLECTION_TIMEOUT_MS,
+  MAX_REFLECTION_OUTPUT_TOKENS,
+  SUPABASE_RPC_TIMEOUT_MS,
+} from "@/lib/constants";
+import { withRetry } from "@/lib/retry";
 import type { RetrievedEntry } from "@/lib/types";
 
 /**
@@ -12,7 +18,7 @@ import type { RetrievedEntry } from "@/lib/types";
  * Supabase client — a user can only ever match against their own entries.
  */
 
-const SYSTEM_PROMPT = `You are Journal Buddy, a warm, gentle reflection companion inside a personal journaling app.
+const SYSTEM_PROMPT = `You are Reflectory, a warm, gentle reflection companion inside a personal journaling app.
 
 Your role:
 - Reflect back what you notice with kindness and curiosity — never diagnose, never give clinical or medical advice.
@@ -34,11 +40,13 @@ export async function retrieveRelevantEntries(
   const { topK = 4, excludeEntryId } = options;
   const queryEmbedding = await embed(query);
 
-  const { data, error } = await supabase.rpc("match_entries", {
-    query_embedding: queryEmbedding,
-    match_count: topK,
-    exclude_id: excludeEntryId ?? null,
-  });
+  const { data, error } = await supabase
+    .rpc("match_entries", {
+      query_embedding: queryEmbedding,
+      match_count: topK,
+      exclude_id: excludeEntryId ?? null,
+    })
+    .abortSignal(AbortSignal.timeout(SUPABASE_RPC_TIMEOUT_MS));
 
   if (error) {
     throw new Error(`pgvector retrieval failed: ${error.message}`);
@@ -66,14 +74,23 @@ export async function generateReflection(
 
   const userPrompt = `Here is what the writer just journaled:\n\n"""\n${currentEntry}\n"""\n\nHere are some of their relevant past entries for context:\n\n${context}\n\nWrite a warm, grounded reflection.`;
 
-  const response = await gemini().models.generateContent({
-    model: serverEnv.chatModel,
-    contents: userPrompt,
-    config: {
-      temperature: 0.7,
-      systemInstruction: SYSTEM_PROMPT,
-    },
-  });
+  // Retries once on a transient upstream failure (e.g. a Gemini "model
+  // overloaded" 503) — this is the app's single most expensive, most
+  // user-visible call, and POST /api/reflect's extended maxDuration gives
+  // enough headroom to safely absorb one retry. A fresh AbortSignal.timeout
+  // is created per attempt since a fired signal can't be reused.
+  const response = await withRetry(() =>
+    gemini().models.generateContent({
+      model: serverEnv.chatModel,
+      contents: userPrompt,
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: MAX_REFLECTION_OUTPUT_TOKENS,
+        abortSignal: AbortSignal.timeout(GEMINI_REFLECTION_TIMEOUT_MS),
+        systemInstruction: SYSTEM_PROMPT,
+      },
+    })
+  );
 
   return response.text?.trim() ?? "";
 }

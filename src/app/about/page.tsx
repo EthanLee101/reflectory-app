@@ -34,7 +34,7 @@ export default async function AboutPage() {
                 Why this exists
               </h2>
               <p>
-                Journal Buddy is a warm, judgment-free space to write —
+                Reflectory is a warm, judgment-free space to write —
                 inspired by wellbeing apps that lean on human coaches, but
                 built the other way around: here, an AI companion is the
                 differentiator. It doesn&apos;t replace a person you can talk
@@ -90,7 +90,7 @@ export default async function AboutPage() {
           </div>
 
           <p className="mt-12 max-w-sm border-l-2 border-border pl-3.5 text-sm leading-relaxed text-faint">
-            Journal Buddy is not a crisis service or a substitute for
+            Reflectory is not a crisis service or a substitute for
             professional care. If you&apos;re in distress, it will point you
             to real support.
           </p>

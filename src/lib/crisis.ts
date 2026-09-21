@@ -1,6 +1,7 @@
 import "server-only";
 import { gemini } from "@/lib/gemini";
 import { serverEnv } from "@/lib/env";
+import { GEMINI_CLASSIFIER_TIMEOUT_MS } from "@/lib/constants";
 import type { CrisisResult } from "@/lib/types";
 
 /**
@@ -44,6 +45,7 @@ async function classifierCheck(text: string): Promise<boolean> {
       temperature: 0,
       maxOutputTokens: 5,
       thinkingConfig: { thinkingBudget: 0 },
+      abortSignal: AbortSignal.timeout(GEMINI_CLASSIFIER_TIMEOUT_MS),
       systemInstruction:
         "You are a safety classifier for a journaling app. Decide if the text indicates the writer may be in acute crisis — expressing suicidal thoughts, intent to self-harm, or immediate danger. Answer with a single character: 'Y' if yes, 'N' if no. Do not explain.",
     },

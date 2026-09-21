@@ -100,6 +100,17 @@ describe("PATCH /api/entries/[id]", () => {
     expect(json.error).toBe("Failed to process entry");
   });
 
+  it("returns 504 when embedding times out", async () => {
+    const timeoutErr = new Error("The operation was aborted");
+    timeoutErr.name = "TimeoutError";
+    embedMock.mockRejectedValue(timeoutErr);
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    const res = await PATCH(makeRequest({ content: "updated" }), ctx());
+    const json = await res.json();
+    expect(res.status).toBe(504);
+    expect(json.error).toBe("Failed to process entry");
+  });
+
   it("returns 404 when the entry doesn't exist or isn't owned by the caller", async () => {
     embedMock.mockResolvedValue([0.1]);
     detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });

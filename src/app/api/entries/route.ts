@@ -4,26 +4,49 @@ import { embed } from "@/lib/embeddings";
 import { detectCrisis } from "@/lib/crisis";
 import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { MAX_ENTRY_LENGTH } from "@/lib/constants";
+import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey } from "@/lib/idempotency";
+import { logError } from "@/lib/logger";
+import { MAX_ENTRY_LENGTH, ENTRIES_PAGE_SIZE, ENTRIES_PAGE_SIZE_MAX } from "@/lib/constants";
 
-/** GET /api/entries — list the current user's entries (RLS-scoped). */
-export async function GET() {
+/**
+ * GET /api/entries?cursor=&limit= — list the current user's entries
+ * (RLS-scoped), newest first, cursor-paginated on created_at.
+ */
+export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  const params = new URL(request.url).searchParams;
+  const cursor = params.get("cursor");
+  const limit = Math.min(
+    Number(params.get("limit")) || ENTRIES_PAGE_SIZE,
+    ENTRIES_PAGE_SIZE_MAX
+  );
+
+  let query = supabase
     .from("entries")
     .select("id, user_id, content, themes, created_at")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
+
+  if (cursor) query = query.lt("created_at", cursor);
+
+  const { data, error } = await query;
 
   if (error) {
-    console.error("GET /api/entries: query failed", error);
+    logError("GET /api/entries", error);
     return NextResponse.json({ error: "Failed to load entries" }, { status: 500 });
   }
-  return NextResponse.json({ entries: data });
+
+  const page = data ?? [];
+  const hasMore = page.length > limit;
+  const entries = hasMore ? page.slice(0, limit) : page;
+  const nextCursor = hasMore ? entries[entries.length - 1].created_at : null;
+
+  return NextResponse.json({ entries, nextCursor });
 }
 
 /**
@@ -43,6 +66,20 @@ export async function POST(request: Request) {
       { error: "Too many requests. Please slow down." },
       { status: 429 }
     );
+  }
+
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (idempotencyKey) {
+    const claim = await claimIdempotencyKey(supabase, idempotencyKey, "entries:write");
+    if (claim.replay === true) {
+      return NextResponse.json(claim.response, { status: claim.statusCode });
+    }
+    if (claim.replay === "conflict") {
+      return NextResponse.json(
+        { error: "Duplicate request already in progress." },
+        { status: 409 }
+      );
+    }
   }
 
   const { content } = await request.json();
@@ -69,8 +106,10 @@ export async function POST(request: Request) {
       extractThemes(content),
     ]);
   } catch (err) {
-    console.error("POST /api/entries: embedding failed", err);
-    return NextResponse.json({ error: "Failed to process entry" }, { status: 502 });
+    logError("POST /api/entries", err, { stage: "embedding" });
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "entries:write");
+    const status = err instanceof Error && err.name === "TimeoutError" ? 504 : 502;
+    return NextResponse.json({ error: "Failed to process entry" }, { status });
   }
 
   const { data, error } = await supabase
@@ -81,9 +120,15 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("POST /api/entries: insert failed", error);
+    logError("POST /api/entries", error, { stage: "insert" });
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "entries:write");
     return NextResponse.json({ error: "Failed to save entry" }, { status: 500 });
   }
 
-  return NextResponse.json({ entry: data, crisis });
+  const responseBody = { entry: data, crisis };
+  if (idempotencyKey) {
+    await completeIdempotencyKey(supabase, idempotencyKey, "entries:write", responseBody, 200);
+  }
+
+  return NextResponse.json(responseBody);
 }

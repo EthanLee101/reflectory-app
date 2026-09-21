@@ -26,6 +26,9 @@ const {
   retrieveRelevantEntriesMock,
   generateReflectionMock,
   checkRateLimitMock,
+  claimIdempotencyKeyMock,
+  completeIdempotencyKeyMock,
+  releaseIdempotencyKeyMock,
 } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   createClientMock: vi.fn(),
@@ -34,6 +37,9 @@ const {
   retrieveRelevantEntriesMock: vi.fn(),
   generateReflectionMock: vi.fn(),
   checkRateLimitMock: vi.fn(),
+  claimIdempotencyKeyMock: vi.fn(),
+  completeIdempotencyKeyMock: vi.fn(),
+  releaseIdempotencyKeyMock: vi.fn(),
 }));
 
 createClientMock.mockImplementation(() =>
@@ -57,13 +63,19 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: checkRateLimitMock,
 }));
 
+vi.mock("@/lib/idempotency", () => ({
+  claimIdempotencyKey: claimIdempotencyKeyMock,
+  completeIdempotencyKey: completeIdempotencyKeyMock,
+  releaseIdempotencyKey: releaseIdempotencyKeyMock,
+}));
+
 import { POST } from "@/app/api/reflect/route";
 
-function makeRequest(body: unknown) {
+function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/reflect", {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -78,6 +90,9 @@ beforeEach(() => {
   retrieveRelevantEntriesMock.mockReset();
   generateReflectionMock.mockReset();
   checkRateLimitMock.mockReset().mockResolvedValue(true);
+  claimIdempotencyKeyMock.mockReset().mockResolvedValue({ replay: false });
+  completeIdempotencyKeyMock.mockReset().mockResolvedValue(undefined);
+  releaseIdempotencyKeyMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe("POST /api/reflect", () => {
@@ -263,5 +278,69 @@ describe("POST /api/reflect", () => {
     const json = await res.json();
     expect(res.status).toBe(502);
     expect(json.error).toBe("Failed to generate reflection");
+  });
+
+  it("returns 504 when generation times out", async () => {
+    const timeoutErr = new Error("The operation was aborted");
+    timeoutErr.name = "TimeoutError";
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockRejectedValue(timeoutErr);
+    const res = await POST(makeRequest({ content: "some entry text" }));
+    const json = await res.json();
+    expect(res.status).toBe(504);
+    expect(json.error).toBe("Failed to generate reflection");
+  });
+
+  it("claims and completes the idempotency key when an Idempotency-Key header is present", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+
+    const res = await POST(
+      makeRequest({ content: "some entry text" }, { "Idempotency-Key": "key-1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(claimIdempotencyKeyMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "key-1",
+      "reflect"
+    );
+    expect(completeIdempotencyKeyMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "key-1",
+      "reflect",
+      expect.objectContaining({ reflection: "a warm reflection" }),
+      200
+    );
+  });
+
+  it("replays the cached response instead of re-processing when the idempotency key is a replay", async () => {
+    claimIdempotencyKeyMock.mockResolvedValue({
+      replay: true,
+      response: { reflection: "cached", grounding: [], crisis: { triggered: false, source: "none" } },
+      statusCode: 200,
+    });
+
+    const res = await POST(
+      makeRequest({ content: "some entry text" }, { "Idempotency-Key": "key-1" })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.reflection).toBe("cached");
+    expect(detectCrisisMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the idempotency key reports a conflict", async () => {
+    claimIdempotencyKeyMock.mockResolvedValue({ replay: "conflict" });
+
+    const res = await POST(
+      makeRequest({ content: "some entry text" }, { "Idempotency-Key": "key-1" })
+    );
+
+    expect(res.status).toBe(409);
+    expect(detectCrisisMock).not.toHaveBeenCalled();
   });
 });

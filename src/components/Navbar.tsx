@@ -6,7 +6,7 @@ export default function Navbar({ userEmail }: { userEmail?: string }) {
     <header className="relative border-b border-border-soft">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <Link href="/" className="font-serif text-xl italic text-foreground">
-          Journal Buddy
+          Reflectory
         </Link>
         <nav className="flex items-center gap-6 text-sm">
           <Link

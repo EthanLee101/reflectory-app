@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/logger";
 import type { Reflection } from "@/lib/types";
 
 /** GET /api/entries/:id/reflections — list an entry's past reflections, newest first. */
@@ -22,7 +23,7 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("GET /api/entries/[id]/reflections: query failed", error);
+    logError("GET /api/entries/[id]/reflections", error);
     return NextResponse.json({ error: "Failed to load reflections" }, { status: 500 });
   }
 

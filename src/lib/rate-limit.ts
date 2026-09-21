@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/logger";
 
 type RouteKey = "entries:write" | "reflect" | "search";
 
@@ -35,7 +36,7 @@ export async function checkRateLimit(
   });
 
   if (error) {
-    console.error(`checkRateLimit(${route}): rpc failed`, error);
+    logError("checkRateLimit", error, { forRoute: route });
     return true;
   }
 

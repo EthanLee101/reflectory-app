@@ -36,6 +36,10 @@ create index if not exists entries_embedding_idx
 -- 3. Row-Level Security ----------------------------------------------------
 -- Grants first — RLS only narrows rows within privileges a role already has.
 grant select, insert, update, delete on public.entries to authenticated;
+-- Anon gets select too, purely so /api/health can prove Postgres is
+-- reachable via a real PostgREST round-trip. Still fully RLS-gated: an
+-- anonymous request has no auth.uid(), so it always sees zero rows.
+grant select on public.entries to anon;
 
 -- The core privacy guarantee: a user can only ever see/modify their own rows.
 alter table public.entries enable row level security;
@@ -169,6 +173,12 @@ create table if not exists public.reflections (
 create index if not exists reflections_entry_id_created_at_idx
   on public.reflections (entry_id, created_at desc);
 
+-- Defense-in-depth for RLS policy evaluation and any future query that lists
+-- reflections by user across entries. NOTE: new section — re-run in the SQL
+-- editor (no migrations pipeline for this project).
+create index if not exists reflections_user_id_idx
+  on public.reflections (user_id);
+
 grant select, insert on public.reflections to authenticated;
 
 alter table public.reflections enable row level security;
@@ -181,4 +191,34 @@ create policy "Users can read their own reflections"
 drop policy if exists "Users can insert their own reflections" on public.reflections;
 create policy "Users can insert their own reflections"
   on public.reflections for insert
+  with check (auth.uid() = user_id);
+
+-- 7. Idempotency keys --------------------------------------------------
+-- Prevents duplicate side effects (a double POST /api/entries or
+-- /api/reflect caused by a network retry or race, not by double-clicking —
+-- the client already disables the button while a request is in flight) from
+-- inserting a duplicate entry or triggering a second paid Gemini call.
+-- NOTE: new section — re-run in the SQL editor.
+create table if not exists public.idempotency_keys (
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  key uuid not null,
+  route text not null,
+  status text not null default 'pending', -- 'pending' | 'done'
+  response jsonb,
+  status_code int,
+  created_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+
+create index if not exists idempotency_keys_created_at_idx
+  on public.idempotency_keys (created_at);
+
+grant select, insert, update, delete on public.idempotency_keys to authenticated;
+
+alter table public.idempotency_keys enable row level security;
+
+drop policy if exists "Users can manage their own idempotency keys" on public.idempotency_keys;
+create policy "Users can manage their own idempotency keys"
+  on public.idempotency_keys for all
+  using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

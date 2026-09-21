@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { computeThemeTrends } from "@/lib/theme-trends";
 import type { Entry } from "@/lib/types";
 import { ChevronIcon } from "@/components/icons";
@@ -18,7 +18,7 @@ function cellColor(count: number): string | undefined {
 }
 
 export default function ThemeTrends({ entries }: { entries: Entry[] }) {
-  const trends = computeThemeTrends(entries);
+  const trends = useMemo(() => computeThemeTrends(entries), [entries]);
 
   if (!trends) {
     return (
@@ -35,7 +35,7 @@ export default function ThemeTrends({ entries }: { entries: Entry[] }) {
           Recurring themes
         </div>
         <p className="relative mt-2 max-w-sm text-sm leading-relaxed text-faint">
-          Write a few entries and Journal Buddy will start noticing what&apos;s
+          Write a few entries and Reflectory will start noticing what&apos;s
           been on your mind — recurring themes will show up here, mapped
           across the weeks.
         </p>

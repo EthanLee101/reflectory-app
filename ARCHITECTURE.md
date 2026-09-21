@@ -1,6 +1,6 @@
 # Architecture & Design Decisions
 
-Journal Buddy is a full-stack AI journaling companion. It is a warm,
+Reflectory is a full-stack AI journaling companion. It is a warm,
 judgment-free space to write, with an AI reflection feature as its core
 differentiator: on request, it grounds its response in the user's own past
 entries via retrieval-augmented generation (RAG), and it hands off to real

@@ -65,6 +65,16 @@ describe("GET /api/entries/search", () => {
     expect(json.error).toBe("Search failed");
   });
 
+  it("returns 504 when retrieval times out", async () => {
+    const timeoutErr = new Error("The operation was aborted");
+    timeoutErr.name = "TimeoutError";
+    retrieveRelevantEntriesMock.mockRejectedValue(timeoutErr);
+    const res = await GET(makeRequest("work"));
+    const json = await res.json();
+    expect(res.status).toBe(504);
+    expect(json.error).toBe("Search failed");
+  });
+
   it("returns the retrieved results on success", async () => {
     const results = [
       { id: "e1", content: "past entry about work", created_at: "2026-01-01", similarity: 0.8 },

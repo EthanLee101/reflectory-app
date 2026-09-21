@@ -1,5 +1,6 @@
 import { gemini } from "@/lib/gemini";
 import { serverEnv } from "@/lib/env";
+import { GEMINI_EMBED_TIMEOUT_MS } from "@/lib/constants";
 
 /**
  * Generate an embedding vector for a piece of text.
@@ -13,7 +14,10 @@ export async function embed(text: string): Promise<number[]> {
   const response = await gemini().models.embedContent({
     model: serverEnv.embeddingModel,
     contents: input,
-    config: { outputDimensionality: serverEnv.embeddingDim },
+    config: {
+      outputDimensionality: serverEnv.embeddingDim,
+      abortSignal: AbortSignal.timeout(GEMINI_EMBED_TIMEOUT_MS),
+    },
   });
   const values = response.embeddings?.[0].values;
   if (!values) {

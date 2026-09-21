@@ -27,7 +27,7 @@ export default function EntryCard({
   deleting: boolean;
   reflecting: boolean;
   reflection: ReflectResponse | null;
-  onSaveEdit: (entry: Entry, content: string) => Promise<void>;
+  onSaveEdit: (entry: Entry, content: string) => Promise<boolean>;
   onDelete: (entry: Entry) => Promise<void>;
   onReflect: (entry: Entry) => Promise<void>;
 }) {
@@ -43,9 +43,9 @@ export default function EntryCard({
   async function saveEdit() {
     if (!editDraft.trim()) return;
     setSavingEdit(true);
-    await onSaveEdit(entry, editDraft);
+    const ok = await onSaveEdit(entry, editDraft);
     setSavingEdit(false);
-    setEditing(false);
+    if (ok) setEditing(false);
   }
 
   if (editing) {

@@ -17,7 +17,7 @@ const STEPS: TourStep[] = [
   {
     selector: '[data-tour="reflect"]',
     title: "Ask for a reflection",
-    body: "This is the heart of Journal Buddy: it retrieves your relevant past entries and grounds its reflection in your own history. It's deliberately never automatic — only when you ask.",
+    body: "This is the heart of Reflectory: it retrieves your relevant past entries and grounds its reflection in your own history. It's deliberately never automatic — only when you ask.",
   },
   {
     selector: '[data-tour="about-link"]',
@@ -26,7 +26,7 @@ const STEPS: TourStep[] = [
   },
 ];
 
-const STORAGE_KEY = "journal-buddy:tour-seen";
+const STORAGE_KEY = "reflectory:tour-seen";
 const TITLE_ID = "app-tour-title";
 
 export function hasSeenTour(): boolean {

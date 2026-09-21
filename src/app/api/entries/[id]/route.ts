@@ -4,6 +4,7 @@ import { embed } from "@/lib/embeddings";
 import { detectCrisis } from "@/lib/crisis";
 import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/logger";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
 /**
@@ -51,8 +52,9 @@ export async function PATCH(
       extractThemes(content),
     ]);
   } catch (err) {
-    console.error("PATCH /api/entries/[id]: embedding failed", err);
-    return NextResponse.json({ error: "Failed to process entry" }, { status: 502 });
+    logError("PATCH /api/entries/[id]", err, { stage: "embedding" });
+    const status = err instanceof Error && err.name === "TimeoutError" ? 504 : 502;
+    return NextResponse.json({ error: "Failed to process entry" }, { status });
   }
 
   const { data, error } = await supabase
@@ -64,7 +66,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    console.error("PATCH /api/entries/[id]: update failed", error);
+    logError("PATCH /api/entries/[id]", error, { stage: "update" });
     return NextResponse.json({ error: "Failed to save entry" }, { status: 500 });
   }
   if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
@@ -97,7 +99,7 @@ export async function DELETE(
     .maybeSingle();
 
   if (error) {
-    console.error("DELETE /api/entries/[id]: delete failed", error);
+    logError("DELETE /api/entries/[id]", error);
     return NextResponse.json({ error: "Failed to delete entry" }, { status: 500 });
   }
   if (!data) return NextResponse.json({ error: "Entry not found" }, { status: 404 });

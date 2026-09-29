@@ -9,6 +9,18 @@ writes, cursor pagination, DB indexing, structured error logging, and a
 The items below can't be done from application code — they're steps to take
 in Vercel/Supabase/Google's consoles, or to run by hand.
 
+## 0. Apply database migrations before deploying
+
+Schema changes live in `supabase/migrations/` (timestamped, applied in filename
+order). The production database already has the baseline; apply any newer files
+(`supabase db push`, or paste each into the SQL editor) **before** deploying
+code that depends on them. Each migration's header notes how to roll it back —
+`git revert` does not undo a database change.
+
+Migration `20260928000001` schedules expired-row cleanup with `pg_cron`. If the
+extension isn't enabled on the project it prints a notice and skips scheduling:
+enable it under Database -> Extensions, then re-run the last `do $$` block.
+
 ## 1. Uptime monitoring
 
 Point a free monitor at `/api/health` (it does a real Postgres round-trip,
@@ -75,3 +87,29 @@ gives a quick scripted load sample against the unauthenticated health
 endpoint (no cookie/session handling needed) — useful as a smoke test, but
 not a substitute for the RLS/rate-limit check above, which exercises the
 real authenticated code paths.
+
+## 5. Content-Security-Policy: report-only, then enforce
+
+`next.config.ts` ships `Content-Security-Policy-Report-Only`, which logs
+violations without blocking anything.
+
+1. Deploy, open the site with the browser console open, and click through
+   landing, login (including Google sign-in), journal, create/edit/delete an
+   entry, search, and reflect.
+2. Any `Refused to ...` / `Report Only` console messages are things the policy
+   would block. Fix the policy or the page.
+3. When a full pass is clean, change the header key to
+   `Content-Security-Policy` to enforce it.
+
+## 6. Database tests and crisis eval
+
+- `npm run test:db` runs RLS, rate-limit atomicity and SQL-function tests against
+  a real Postgres + pgvector (`TEST_DATABASE_URL`). CI provides one. Locally:
+  `docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres pgvector/pgvector:pg16`
+  then `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres npm run test:db`.
+  These test the real policies and SQL, not PostgREST/GoTrue, so the manual
+  two-account check in section 4 remains the end-to-end confirmation.
+- `npm run eval:crisis` runs the labeled crisis cases through the live classifier
+  and reports recall/precision. It needs a Gemini key with enough quota (the free
+  tier's ~20 requests/day is not enough) and refuses to report if the classifier
+  errored. Record the model, date and numbers in `ARCHITECTURE.md` when you run it.

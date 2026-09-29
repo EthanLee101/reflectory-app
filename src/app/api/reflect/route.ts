@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { retrieveRelevantEntries, generateReflection } from "@/lib/rag";
+import { retrieveRelevantEntries, retrieveRelatedToEntry, generateReflection } from "@/lib/rag";
 import { detectCrisis } from "@/lib/crisis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey } from "@/lib/idempotency";
 import { logError } from "@/lib/logger";
+import { readJsonBody } from "@/lib/http";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 import type { ReflectResponse } from "@/lib/types";
 
@@ -74,7 +75,12 @@ export async function POST(request: Request) {
     }
   }
 
-  const { entryId, content } = await request.json();
+  const body = await readJsonBody(request);
+  if (!body) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "reflect");
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { entryId, content } = body;
   if (typeof content !== "string" || !content.trim()) {
     if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "reflect");
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
@@ -88,15 +94,21 @@ export async function POST(request: Request) {
   }
 
   let validEntryId: string | undefined;
+  // True when the submitted text is exactly the saved entry, so its stored
+  // embedding is current and retrieval can skip a Gemini embed call.
+  let matchesStoredEntry = false;
   if (typeof entryId === "string") {
     try {
       const { data: owned } = await supabase
         .from("entries")
-        .select("id")
+        .select("id, content")
         .eq("id", entryId)
         .eq("user_id", user.id)
         .maybeSingle();
-      if (owned) validEntryId = entryId;
+      if (owned) {
+        validEntryId = entryId;
+        matchesStoredEntry = owned.content === content;
+      }
     } catch (err) {
       logError("POST /api/reflect", err, { stage: "ownership check" });
     }
@@ -116,10 +128,13 @@ export async function POST(request: Request) {
       return NextResponse.json(safe);
     }
 
-    const grounding = await retrieveRelevantEntries(supabase, content, {
-      topK: 4,
-      excludeEntryId: validEntryId,
-    });
+    const grounding =
+      validEntryId && matchesStoredEntry
+        ? await retrieveRelatedToEntry(supabase, validEntryId, { topK: 4 })
+        : await retrieveRelevantEntries(supabase, content, {
+            topK: 4,
+            excludeEntryId: validEntryId,
+          });
 
     const reflection = await generateReflection(content, grounding);
 

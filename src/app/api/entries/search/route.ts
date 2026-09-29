@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { retrieveRelevantEntries } from "@/lib/rag";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
-import { MAX_SEARCH_QUERY_LENGTH } from "@/lib/constants";
+import { MAX_SEARCH_QUERY_LENGTH, MIN_SEARCH_SIMILARITY } from "@/lib/constants";
 
 /**
  * GET /api/entries/search?q=... — semantic search over the caller's own
@@ -38,7 +38,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await retrieveRelevantEntries(supabase, q, { topK: 8 });
+    const results = await retrieveRelevantEntries(supabase, q, {
+      topK: 8,
+      minSimilarity: MIN_SEARCH_SIMILARITY,
+    });
     return NextResponse.json({ results });
   } catch (err) {
     logError("GET /api/entries/search", err);

@@ -6,6 +6,7 @@ import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey } from "@/lib/idempotency";
 import { logError } from "@/lib/logger";
+import { readJsonBody } from "@/lib/http";
 import { MAX_ENTRY_LENGTH, ENTRIES_PAGE_SIZE, ENTRIES_PAGE_SIZE_MAX } from "@/lib/constants";
 
 /**
@@ -82,11 +83,18 @@ export async function POST(request: Request) {
     }
   }
 
-  const { content } = await request.json();
+  const body = await readJsonBody(request);
+  if (!body) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "entries:write");
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { content } = body;
   if (typeof content !== "string" || !content.trim()) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "entries:write");
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
   if (content.length > MAX_ENTRY_LENGTH) {
+    if (idempotencyKey) await releaseIdempotencyKey(supabase, idempotencyKey, "entries:write");
     return NextResponse.json(
       { error: `Content must be ${MAX_ENTRY_LENGTH} characters or fewer` },
       { status: 400 }

@@ -1,5 +1,6 @@
--- Journal Buddy — database schema
--- Run this in the Supabase SQL editor (or via the CLI) to set up the MVP.
+-- Reflectory — baseline database schema.
+-- Apply via `supabase db push` or the Supabase SQL editor. Later changes live
+-- in newer timestamped files in this directory; apply them in filename order.
 -- Assumes Supabase Auth is enabled (auth.users exists).
 
 -- 1. Extensions ------------------------------------------------------------
@@ -7,8 +8,9 @@
 create extension if not exists vector;
 
 -- 2. Entries table ---------------------------------------------------------
--- NOTE: embedding dimension (1536) must match OPENAI_EMBEDDING_DIM /
--- OPENAI_EMBEDDING_MODEL (text-embedding-3-small = 1536).
+-- NOTE: embedding dimension (1536) must match GEMINI_EMBEDDING_DIM
+-- (see .env.example / src/lib/env.ts; gemini-embedding-001 is called with
+-- outputDimensionality = 1536).
 create table if not exists public.entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
@@ -97,9 +99,7 @@ $$;
 -- 5. Rate limiting -----------------------------------------------------
 -- Postgres-backed so limits are correct across concurrent serverless
 -- instances/cold starts (an in-memory counter would not be a real global
--- limit). NOTE: this is a new section added after the MVP — re-run this
--- whole file (or just this section) in the Supabase SQL editor; there is
--- no migrations pipeline for this project.
+-- limit).
 create table if not exists public.rate_limits (
   user_id uuid not null references auth.users (id) on delete cascade,
   route text not null,
@@ -157,7 +157,7 @@ $$;
 -- Persists each generated reflection (and the grounding it used) so past
 -- reflections survive a page reload and can be revisited. Best-effort from
 -- the app's side: a write failure here never blocks returning the
--- reflection to the user. NOTE: new section — re-run in the SQL editor.
+-- reflection to the user.
 create table if not exists public.reflections (
   id uuid primary key default gen_random_uuid(),
   entry_id uuid not null references public.entries (id) on delete cascade,
@@ -174,8 +174,7 @@ create index if not exists reflections_entry_id_created_at_idx
   on public.reflections (entry_id, created_at desc);
 
 -- Defense-in-depth for RLS policy evaluation and any future query that lists
--- reflections by user across entries. NOTE: new section — re-run in the SQL
--- editor (no migrations pipeline for this project).
+-- reflections by user across entries.
 create index if not exists reflections_user_id_idx
   on public.reflections (user_id);
 
@@ -198,7 +197,7 @@ create policy "Users can insert their own reflections"
 -- /api/reflect caused by a network retry or race, not by double-clicking —
 -- the client already disables the button while a request is in flight) from
 -- inserting a duplicate entry or triggering a second paid Gemini call.
--- NOTE: new section — re-run in the SQL editor.
+--
 create table if not exists public.idempotency_keys (
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
   key uuid not null,

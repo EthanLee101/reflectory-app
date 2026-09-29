@@ -5,6 +5,7 @@ import { serverEnv } from "@/lib/env";
 import {
   GEMINI_REFLECTION_TIMEOUT_MS,
   MAX_REFLECTION_OUTPUT_TOKENS,
+  MIN_REFLECTION_SIMILARITY,
   SUPABASE_RPC_TIMEOUT_MS,
 } from "@/lib/constants";
 import { withRetry } from "@/lib/retry";
@@ -30,14 +31,15 @@ Write in second person, directly to the writer.`;
 
 /**
  * Retrieve the top-k most relevant past entries for a query, excluding the
- * entry currently being reflected on (if provided).
+ * entry currently being reflected on (if provided). Entries scoring below
+ * `minSimilarity` are dropped, so the result may be shorter than `topK` (or empty).
  */
 export async function retrieveRelevantEntries(
   supabase: SupabaseClient,
   query: string,
-  options: { topK?: number; excludeEntryId?: string } = {}
+  options: { topK?: number; excludeEntryId?: string; minSimilarity?: number } = {}
 ): Promise<RetrievedEntry[]> {
-  const { topK = 4, excludeEntryId } = options;
+  const { topK = 4, excludeEntryId, minSimilarity = MIN_REFLECTION_SIMILARITY } = options;
   const queryEmbedding = await embed(query);
 
   const { data, error } = await supabase
@@ -45,6 +47,35 @@ export async function retrieveRelevantEntries(
       query_embedding: queryEmbedding,
       match_count: topK,
       exclude_id: excludeEntryId ?? null,
+      min_similarity: minSimilarity,
+    })
+    .abortSignal(AbortSignal.timeout(SUPABASE_RPC_TIMEOUT_MS));
+
+  if (error) {
+    throw new Error(`pgvector retrieval failed: ${error.message}`);
+  }
+
+  return (data ?? []) as RetrievedEntry[];
+}
+
+/**
+ * Same retrieval, seeded from an entry's already-stored embedding, so no Gemini
+ * embed call is needed. Only valid when the text being reflected on is exactly
+ * the stored text (an unsaved edit has a stale stored embedding). The entry
+ * itself is excluded, and RLS applies to the seed lookup too.
+ */
+export async function retrieveRelatedToEntry(
+  supabase: SupabaseClient,
+  entryId: string,
+  options: { topK?: number; minSimilarity?: number } = {}
+): Promise<RetrievedEntry[]> {
+  const { topK = 4, minSimilarity = MIN_REFLECTION_SIMILARITY } = options;
+
+  const { data, error } = await supabase
+    .rpc("match_entries_for_entry", {
+      p_entry_id: entryId,
+      match_count: topK,
+      min_similarity: minSimilarity,
     })
     .abortSignal(AbortSignal.timeout(SUPABASE_RPC_TIMEOUT_MS));
 

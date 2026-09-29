@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MAX_SEARCH_QUERY_LENGTH } from "@/lib/constants";
+import { MAX_SEARCH_QUERY_LENGTH, MIN_SEARCH_SIMILARITY } from "@/lib/constants";
 
 const { getUserMock, createClientMock, retrieveRelevantEntriesMock, checkRateLimitMock } =
   vi.hoisted(() => ({
@@ -89,7 +89,7 @@ describe("GET /api/entries/search", () => {
     expect(retrieveRelevantEntriesMock).toHaveBeenCalledWith(
       expect.anything(),
       "work",
-      { topK: 8 }
+      { topK: 8, minSimilarity: MIN_SEARCH_SIMILARITY }
     );
   });
 });

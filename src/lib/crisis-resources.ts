@@ -1,8 +1,10 @@
 /**
  * Crisis resources shown when distress is detected.
  *
- * ⚠️  VERIFY THESE ARE CURRENT before any real user touches the app.
- * These default to US/international resources; localize as needed.
+ * Last verified against each organization's own site on 2026-09-29 (988: call/text
+ * 24/7; Crisis Text Line: text HOME to 741741; IASP directory moved to the URL below).
+ * Re-check periodically: these are safety-critical and go stale. US/international
+ * defaults; localize as needed.
  */
 export interface CrisisResource {
   name: string;
@@ -28,6 +30,6 @@ export const CRISIS_RESOURCES: CrisisResource[] = [
     name: "International Association for Suicide Prevention",
     description: "Directory of crisis centers around the world.",
     contact: "Find a center near you",
-    href: "https://www.iasp.info/resources/Crisis_Centres/",
+    href: "https://www.iasp.info/crisis-centres-helplines/",
   },
 ];

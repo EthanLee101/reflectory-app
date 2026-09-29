@@ -78,6 +78,15 @@ describe("PATCH /api/entries/[id]", () => {
     expect(detectCrisisMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a malformed JSON body", async () => {
+    const res = await PATCH(
+      new Request("http://localhost/api/entries/e1", { method: "PATCH", body: "{not json", headers: { "content-type": "application/json" } }),
+      ctx()
+    );
+    expect(res.status).toBe(400);
+    expect(embedMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for empty content", async () => {
     const res = await PATCH(makeRequest({ content: "   " }), ctx());
     expect(res.status).toBe(400);

@@ -25,6 +25,17 @@ export const GEMINI_THEME_TIMEOUT_MS = 6000;
 export const GEMINI_REFLECTION_TIMEOUT_MS = 20000;
 export const SUPABASE_RPC_TIMEOUT_MS = 5000;
 
+/**
+ * Minimum cosine similarity for a past entry to count as "relevant" (matched in
+ * SQL by match_entries / match_entries_for_entry). Below this floor an entry is
+ * dropped rather than fed to the model as grounding it would misrepresent.
+ * STARTING POINTS, not calibrated values: tune against real entries with
+ * gemini-embedding-001 (related pairs typically score well above unrelated
+ * ones, but the exact gap depends on the data).
+ */
+export const MIN_REFLECTION_SIMILARITY = 0.5;
+export const MIN_SEARCH_SIMILARITY = 0.45;
+
 /** Default and max page size for cursor-based entry pagination. */
 export const ENTRIES_PAGE_SIZE = 20;
 export const ENTRIES_PAGE_SIZE_MAX = 50;

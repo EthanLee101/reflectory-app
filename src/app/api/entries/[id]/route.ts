@@ -5,6 +5,7 @@ import { detectCrisis } from "@/lib/crisis";
 import { extractThemes } from "@/lib/themes";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
+import { readJsonBody } from "@/lib/http";
 import { MAX_ENTRY_LENGTH } from "@/lib/constants";
 
 /**
@@ -31,7 +32,9 @@ export async function PATCH(
     );
   }
 
-  const { content } = await request.json();
+  const body = await readJsonBody(request);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const { content } = body;
   if (typeof content !== "string" || !content.trim()) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }

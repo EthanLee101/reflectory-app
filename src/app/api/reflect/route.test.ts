@@ -6,7 +6,9 @@ function makeInsertBuilder(result: { error: unknown } = { error: null }) {
 }
 
 /** Mocks the `.from("entries").select(...).eq(...).eq(...).maybeSingle()` ownership check. */
-function makeEntriesBuilder(owned: { id: string } | null = { id: "owned" }) {
+function makeEntriesBuilder(
+  owned: { id: string; content?: string } | null = { id: "owned" }
+) {
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -24,6 +26,7 @@ const {
   fromMock,
   detectCrisisMock,
   retrieveRelevantEntriesMock,
+  retrieveRelatedToEntryMock,
   generateReflectionMock,
   checkRateLimitMock,
   claimIdempotencyKeyMock,
@@ -35,6 +38,7 @@ const {
   fromMock: vi.fn(),
   detectCrisisMock: vi.fn(),
   retrieveRelevantEntriesMock: vi.fn(),
+  retrieveRelatedToEntryMock: vi.fn(),
   generateReflectionMock: vi.fn(),
   checkRateLimitMock: vi.fn(),
   claimIdempotencyKeyMock: vi.fn(),
@@ -56,6 +60,7 @@ vi.mock("@/lib/crisis", () => ({
 
 vi.mock("@/lib/rag", () => ({
   retrieveRelevantEntries: retrieveRelevantEntriesMock,
+  retrieveRelatedToEntry: retrieveRelatedToEntryMock,
   generateReflection: generateReflectionMock,
 }));
 
@@ -88,6 +93,7 @@ beforeEach(() => {
     );
   detectCrisisMock.mockReset();
   retrieveRelevantEntriesMock.mockReset();
+  retrieveRelatedToEntryMock.mockReset();
   generateReflectionMock.mockReset();
   checkRateLimitMock.mockReset().mockResolvedValue(true);
   claimIdempotencyKeyMock.mockReset().mockResolvedValue({ replay: false });
@@ -170,6 +176,49 @@ describe("POST /api/reflect", () => {
       grounding,
       crisis: { triggered: false, source: "none" },
     });
+  });
+
+  it("reuses the stored embedding when the text matches the saved entry", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    const grounding = [
+      { id: "e1", content: "past entry", created_at: "2026-01-01", similarity: 0.9 },
+    ];
+    retrieveRelatedToEntryMock.mockResolvedValue(grounding);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    fromMock.mockImplementation((table: string) =>
+      table === "entries"
+        ? makeEntriesBuilder({ id: "e0", content: "feeling okay today" })
+        : makeInsertBuilder()
+    );
+
+    const res = await POST(makeRequest({ content: "feeling okay today", entryId: "e0" }));
+
+    expect(res.status).toBe(200);
+    expect(retrieveRelatedToEntryMock).toHaveBeenCalledWith(expect.anything(), "e0", {
+      topK: 4,
+    });
+    expect(retrieveRelevantEntriesMock).not.toHaveBeenCalled();
+    expect(generateReflectionMock).toHaveBeenCalledWith("feeling okay today", grounding);
+  });
+
+  it("re-embeds when the submitted text differs from the saved entry", async () => {
+    detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });
+    retrieveRelevantEntriesMock.mockResolvedValue([]);
+    generateReflectionMock.mockResolvedValue("a warm reflection");
+    fromMock.mockImplementation((table: string) =>
+      table === "entries"
+        ? makeEntriesBuilder({ id: "e0", content: "the older saved text" })
+        : makeInsertBuilder()
+    );
+
+    await POST(makeRequest({ content: "an unsaved edit", entryId: "e0" }));
+
+    expect(retrieveRelatedToEntryMock).not.toHaveBeenCalled();
+    expect(retrieveRelevantEntriesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "an unsaved edit",
+      { topK: 4, excludeEntryId: "e0" }
+    );
   });
 
   it("persists the reflection when an entryId is given", async () => {
@@ -290,6 +339,15 @@ describe("POST /api/reflect", () => {
     const json = await res.json();
     expect(res.status).toBe(504);
     expect(json.error).toBe("Failed to generate reflection");
+  });
+
+  it("returns 400 and releases the idempotency key for a malformed JSON body", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/reflect", { method: "POST", body: "{not json", headers: { "content-type": "application/json", "Idempotency-Key": "key-1" } })
+    );
+    expect(res.status).toBe(400);
+    expect(releaseIdempotencyKeyMock).toHaveBeenCalledWith(expect.anything(), "key-1", "reflect");
+    expect(detectCrisisMock).not.toHaveBeenCalled();
   });
 
   it("claims and completes the idempotency key when an Idempotency-Key header is present", async () => {

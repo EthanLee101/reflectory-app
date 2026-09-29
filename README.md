@@ -24,8 +24,9 @@ tech stack choices.
    npm install
    ```
 
-2. **Create a Supabase project**, then run [`supabase/schema.sql`](supabase/schema.sql)
-   in the SQL editor. This creates the `entries` table, enables pgvector, sets up
+2. **Create a Supabase project**, then apply the files in
+   [`supabase/migrations/`](supabase/migrations) in filename order (`supabase db push`,
+   or paste each into the SQL editor). This creates the `entries` table, enables pgvector, sets up
    RLS policies, and defines the retrieval + rate-limiting functions.
 
 3. **Configure environment variables**
@@ -48,6 +49,13 @@ tech stack choices.
 
 Sign up with two accounts, write an entry in each, and confirm neither can see
 the other's entries. This is the core privacy baseline — test it for real.
+
+## Tests
+
+- `npm test` — unit tests (mocked Supabase/Gemini). Runs everywhere, including CI.
+- `npm run test:db` — real-Postgres tests of RLS, the atomic rate limiter and the
+  SQL functions; needs `TEST_DATABASE_URL` (see `docs/production-readiness.md`).
+- `npm run eval:crisis` — live crisis-detection eval against Gemini (uses quota).
 
 ## Project layout
 
@@ -83,7 +91,7 @@ src/
     logger.ts                        Structured error/warn logging
     types.ts                        Shared types
 middleware.ts               Refreshes auth session; guards /journal
-supabase/schema.sql         Database schema + RLS + retrieval/rate-limit functions
+supabase/migrations/        Versioned schema: RLS, retrieval + rate-limit functions
 docs/production-readiness.md Uptime monitoring, billing caps, backup/load testing guide
 ```
 

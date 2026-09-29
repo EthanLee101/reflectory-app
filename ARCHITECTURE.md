@@ -39,12 +39,47 @@ is that a dependable simple safeguard beats a clever one that might fail
 quietly; safety here is a designed feature, not a disclaimer bolted on
 afterward.
 
+## Retrieval details
+
+Retrieved entries must clear a cosine-similarity floor
+(`MIN_REFLECTION_SIMILARITY` / `MIN_SEARCH_SIMILARITY` in
+`src/lib/constants.ts`) rather than always taking the top-k, so the model is
+never handed unrelated entries as "context". The floors are starting points to
+tune on real data. When the text being reflected on is exactly the saved entry,
+retrieval reuses its stored embedding (`match_entries_for_entry`) instead of
+paying for another embed call.
+
 ## Data protection
 
 Entries live in Supabase Postgres with Row-Level Security enabled, so a
 user can only read or write their own rows at the database layer, not just
 in application code. This was verified directly by testing with two
-separate accounts and confirming neither could see the other's entries.
+separate accounts and confirming neither could see the other's entries, and is
+now also covered by automated tests against a real Postgres (`test/db/`).
+
+The per-user rate-limit table is not directly writable by API roles: the counter
+changes only through the `SECURITY DEFINER` `check_rate_limit` function, so a
+signed-in user can't reset their own bucket through the REST API. Accepted
+residual risk: `entries` and `idempotency_keys` remain directly writable by their
+owner (a user can insert their own rows without an embedding, or delete their own
+idempotency keys). That affects only the user's own data and triggers no paid
+Gemini calls.
+
+### Known limits of the safeguards
+
+- The classifier fails open: if the Gemini call errors (outage, exhausted quota),
+  detection falls back to keywords only. The failure is logged (`detectCrisis`)
+  so it is visible, and the keyword layer never depends on the network.
+- Keyword matching cannot tell topic from intent ("a documentary about suicide
+  prevention" triggers it). A false alarm shows a resources banner; a miss is
+  worse, so the layer stays conservative in that direction.
+- The entry is wrapped in delimiters and the classifier is told to treat it as
+  data, which raises the bar for prompt injection but is not a guarantee.
+- Measured with `npm run eval:crisis` (labeled cases in
+  `src/lib/crisis-eval-cases.ts`). Live-classifier recall: **not yet measured** —
+  the first run hit the free-tier quota; record model, date and numbers here
+  once run with adequate quota. This is a designed safeguard, not a clinically
+  validated one.
 
 ## Tech stack and rationale
 

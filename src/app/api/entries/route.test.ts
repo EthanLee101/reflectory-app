@@ -186,6 +186,21 @@ describe("POST /api/entries", () => {
     expect(json.crisis).toEqual({ triggered: false, source: "none" });
   });
 
+  it("returns 400 and releases the idempotency key for a malformed JSON body", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/entries", { method: "POST", body: "{not json", headers: { "content-type": "application/json", "Idempotency-Key": "key-1" } })
+    );
+    expect(res.status).toBe(400);
+    expect(releaseIdempotencyKeyMock).toHaveBeenCalledWith(expect.anything(), "key-1", "entries:write");
+    expect(embedMock).not.toHaveBeenCalled();
+  });
+
+  it("releases the idempotency key when content validation fails", async () => {
+    const res = await POST(makeRequest({ content: "   " }, { "Idempotency-Key": "key-1" }));
+    expect(res.status).toBe(400);
+    expect(releaseIdempotencyKeyMock).toHaveBeenCalledWith(expect.anything(), "key-1", "entries:write");
+  });
+
   it("claims and completes the idempotency key when an Idempotency-Key header is present", async () => {
     embedMock.mockResolvedValue([0.1, 0.2]);
     detectCrisisMock.mockResolvedValue({ triggered: false, source: "none" });

@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
@@ -14,5 +14,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
+    // Real-Postgres tests need a database; they run via `npm run test:db`.
+    exclude: [...configDefaults.exclude, "test/db/**"],
   },
 });

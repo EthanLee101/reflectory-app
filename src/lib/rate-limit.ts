@@ -17,7 +17,7 @@ const LIMITS: Record<RouteKey, { limit: number; windowSeconds: number }> = {
 
 /**
  * Postgres-backed rate limit check (atomic, correct across serverless
- * instances/cold starts — see check_rate_limit in supabase/schema.sql).
+ * instances/cold starts — see check_rate_limit in supabase/migrations/).
  *
  * Fails OPEN on an unexpected RPC error — mirrors detectCrisis's fail-open
  * philosophy: an outage in an auxiliary protection check shouldn't block the
